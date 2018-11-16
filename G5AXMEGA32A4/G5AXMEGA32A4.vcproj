@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8,00"
+	Name="G5AXMEGA32A4"
+	ProjectGUID="{B714AF8F-1374-43D4-8707-4BCD54E9D858}"
+	RootNamespace="G5AXMEGA32A4"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="0"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="make -h version=Debug"
+				ReBuildCommandLine="make -h -a version=Debug"
+				CleanCommandLine="@del /Q .\Debug\*.*"
+				Output="$(OutDir)\G5AXMEGA32A4.axf"
+				PreprocessorDefinitions="__AVR_ATxmega32A4__,_DEBUG,WIN32"
+				IncludeSearchPath="c:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.2.1002\avr8-gnu-toolchain\avr\include\"
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="0"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="make -h version=Release"
+				ReBuildCommandLine="make -h -a version=Release"
+				CleanCommandLine="@del /Q .\Release\*.*"
+				Output="$(OutDir)\G5AXMEGA32A4.axf"
+				PreprocessorDefinitions="__AVR_ATxmega32A4__,WIN32"
+				IncludeSearchPath="c:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.2.1002\avr8-gnu-toolchain\avr\include\"
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Win32_Debug|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="0"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="make -h version=Win32_Debug"
+				ReBuildCommandLine="make -h -a version=Win32_Debug"
+				CleanCommandLine="@del /Q $(OutDir)\*.*"
+				Output="$(OutDir)\G5AXMEGA32A4.axf"
+				PreprocessorDefinitions="__AVR_ATxmega32A4__,_DEBUG,WIN32"
+				IncludeSearchPath="c:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.2.1002\avr8-gnu-toolchain\avr\include\"
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Source Files"
+			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
+			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
+			>
+			<File
+				RelativePath=".\cpp\control.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\hardware.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\main.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\manchester.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\measure.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\options.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\telemetry.cpp"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Header Files"
+			Filter="h;hpp;hxx;hm;inl;inc;xsd"
+			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
+			>
+			<File
+				RelativePath=".\cpp\common.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\control.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\hardware.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\main.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\manchester.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\measure.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\options.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\telemetry.h"
+				>
+			</File>
+			<File
+				RelativePath=".\cpp\types.h"
+				>
+			</File>
+		</Filter>
+		<File
+			RelativePath=".\makeobj"
+			>
+		</File>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

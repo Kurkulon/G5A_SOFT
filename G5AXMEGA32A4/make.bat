@@ -1,0 +1,2 @@
+@call avrenv
+@call wmake %*
