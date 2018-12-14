@@ -112,9 +112,7 @@ static void UpdateGenTime()
 
 		if (genTimeOut < dt) 
 		{
-			genTimeOut = 0;
-
-			TCC0.CTRLB = TC_WGMODE_SS_gc;
+			DisableGen();
 		}
 		else
 		{
@@ -136,6 +134,15 @@ void EnableGen()
 	TCC0.CTRLA = TC_CLKSEL_DIV64_gc;
 
 	genTimeOut = MS2RT(60000);
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+void DisableGen()
+{
+	genTimeOut = 0;
+
+	TCC0.CTRLB = TC_WGMODE_SS_gc;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

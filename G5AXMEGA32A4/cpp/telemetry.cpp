@@ -66,6 +66,10 @@ static bool RequestMan_20(volatile u16 *data, u16 len, volatile u16 *txbuf, vola
 	if (data[0] & 1)
 	{
 		EnableGen();
+	}
+	else
+	{
+		DisableGen();
 	};
 
 	txbuf[0] = data[0];//(manReqWord & manReqMask) | 0x20;

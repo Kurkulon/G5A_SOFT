@@ -67,6 +67,7 @@ extern void ResetGenWorkTime();
 
 extern void UpdateHardware();
 extern void EnableGen();
+extern void DisableGen();
 
 extern u16 GetRTC();
 
