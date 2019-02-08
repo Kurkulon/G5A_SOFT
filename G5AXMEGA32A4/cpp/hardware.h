@@ -75,7 +75,7 @@ inline u16 GetGenFreq() { extern byte gen_freq; return gen_freq; }
 inline u16 GetWindowCount() { extern u16 windowCount; return windowCount; }
 inline u16 GetWindowTime() {extern u16 windowTime; return windowTime; }
 inline u16 GetGenWorkTime() {extern u16 genWorkTimeMinutes; return genWorkTimeMinutes; }
-inline u16 GetFireCount() {extern u16 fireCount; cli(); u16 v = fireCount; sei(); return v; }
+inline u16 GetFireCount() {extern u16 fireCount; cli(); u16 v = fireCount; fireCount = 0; sei(); return v; }
 
 extern u32 m_ts[];
 extern u32 b_ts[];
