@@ -1,0 +1,6 @@
+SWDSelect
+speed 2000
+r
+exec device = ATSAMD21J17
+loadbin obj\G5ASAMD21.bin,0x00000000
+exit
