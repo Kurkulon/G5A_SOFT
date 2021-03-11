@@ -497,6 +497,16 @@ namespace T_HW
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+	#define	PORT_PMUXEN			(1<<16)
+	#define	PORT_INEN			(1<<17)
+	#define	PORT_PULLEN       	(1<<18)
+	#define	PORT_DRVSTR       	(1<<22)
+	#define PORT_PMUX(value)	(((value)&15)<<24)
+	#define	PORT_WRPMUX       	(1<<28)
+	#define	PORT_WRPINCFG      	(1<<30)
+	#define	PORT_HWSEL_LO      	(0<<31)
+	#define	PORT_HWSEL_HI      	(1UL<<31)
+
 	struct S_PORT
 	{
 		RW32	DIR;         		/**< \brief Offset: 0x00 (R/W 32) Data Direction */
@@ -529,17 +539,23 @@ namespace T_HW
 		bool 	TBSET(u16 b) 		{ return IN & (1<<b); }
 		bool 	TBCLR(u16 b) 		{ return (IN & (1<<b)) == 0; }
 
-		void 	SetPinMux(byte pinnum, byte value) { byte sh = (pinnum&1)<<2; pinnum >>= 1; PMUX[pinnum] = (PMUX[pinnum] & ~(0xF<<sh)) | (value<<sh); };
+		//void 	SetPinMux(byte pinnum, byte value) { byte sh = (pinnum&1)<<2; pinnum >>= 1; PMUX[pinnum] = (PMUX[pinnum] & ~(0xF<<sh)) | (value<<sh); };
 		
-		void 	SetCfgMux(byte cfg, byte mux, u32 mask) 
+		void 	SetWRCONFIG(u32 mask, u32 mux) 
 		{ 
-			u32 t = (((u32)(0x50 | (mux&0xF))<<8) | cfg) << 16; 
+			u32 t = (mux & 0xFFFF0000); 
 			WRCONFIG = t | (mask & 0xFFFF); 
-			WRCONFIG = t | (mask >> 16) | (1uL<<31); };
+			WRCONFIG = t | (mask >> 16) | PORT_HWSEL_HI;
+		};
 	};										
 											
 	typedef S_PORT S_PORTA, S_PORTB, S_PIOA, S_PIOB;
-											
+
+	#define	PINGFG_PMUXEN       (1<<0)
+	#define	PINGFG_INEN			(1<<1)
+	#define	PINGFG_PULLEN       (1<<2)
+	#define	PINGFG_DRVSTR       (1<<6)
+
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 	struct S_NVMCTRL
