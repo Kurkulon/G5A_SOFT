@@ -40,6 +40,7 @@ extern bool ADC_Idle(byte ch);
 
 inline u16 ADC_Get(byte ch) { extern u16 adc_result[8]; return adc_result[ch]; }
 
+//inline void __dsb() { __asm { DSB }; }
 
 extern i16 Temperature_Sensor_Calibrate(i16 t);
 extern void EEPROM_Read(byte *src, byte *dst, u16 size);
@@ -135,6 +136,7 @@ extern bool RcvManData(MRB *mrb);
 extern bool SendManData(MTB *mtb);
 extern void SetTrmBoudRate(byte i);
 extern void ManRcvUpdate();
+extern bool SendManData_2(MTB *mtb);
 //extern void ManRcvStop();
 
 extern bool SendMLT3(MTB *mtb);

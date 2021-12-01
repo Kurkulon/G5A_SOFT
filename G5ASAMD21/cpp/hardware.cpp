@@ -5,10 +5,6 @@
 #include "hardware.h"
 #include "options.h"
 
-#define I2C I2C3
-
-__align(16) T_HW::DMADESC DmaTable[12];
-__align(16) T_HW::DMADESC DmaWRB[12];
 
 u32 m_ts[256];
 u32 b_ts[256];
@@ -27,16 +23,128 @@ u16 gen_freq = 10;
 
 static void SaveGenTime();
 
-#define GenTCC		HW::TCC2
-#define WinTC		HW::TC3
-#define bTC			HW::TC4
-#define mTC			HW::TC5
-#define D_FIRE		(1<<16)
-#define SYNC		(1<<20)
-#define SPI			HW::SPI5
-#define M1			(1<<9)
-#define M2			(1<<8)
-#define TLS			(1<<0) 
+#define GEN_MCK		0
+#define GEN_1M		1
+#define GEN_32K		2
+#define GEN_16M		3
+#define GEN_500K	4
+
+#define	NAND_DMACH		0
+#define	COM1_DMACH		1
+#define	COM2_DMACH		2
+#define	COM3_DMACH		3
+#define	SPI_DMACH_TX	4
+#define	SPI_DMACH_RX	5
+#define	DSP_DMACH		30
+#define	CRC_DMACH		31
+
+#define I2C			HW::I2C3
+#define PIO_I2C		HW::PIOA 
+#define PIN_SDA		22 
+#define PIN_SCL		23 
+#define SDA			(1<<PIN_SDA) 
+#define SCL			(1<<PIN_SCL) 
+
+__align(16) T_HW::DMADESC DmaTable[12];
+__align(16) T_HW::DMADESC DmaWRB[12];
+
+#define SPI				HW::SPI5
+#define PIO_SCLK		HW::PIOB
+#define PIO_DATA		HW::PIOB
+//#define PIO_MISO		HW::PIOA
+#define PIO_SYNC		HW::PIOA
+
+#define PIN_SCLK		17
+#define PIN_MOSI		16 
+#define PIN_SYNC		20 
+
+#define SCLK			(1<<PIN_SCLK) 
+#define MOSI			(1<<PIN_MOSI) 
+#define SYNC			(1<<PIN_SYNC) 
+
+#define SPI_IRQ			SERCOM5_IRQ
+
+#define EVENT_MANR_1	0
+#define EVENT_MANR_2	1
+#define EVENT_DNNKB		2
+#define EVENT_DNNKM		3
+
+
+
+#define ManTT			HW::TCC0
+#define ManRT			HW::TCC1
+#define GenTCC			HW::TCC2
+
+#define WinTC			HW::TC3
+#define bTC				HW::TC4
+#define mTC				HW::TC5
+#define ManIT			HW::TC6
+//#define 				HW::TC7
+
+#define WIN_IRQ			TC3_IRQ
+#define GEN_IRQ			TCC2_IRQ
+
+
+#define MT(v)			(v)
+#define BAUD2CLK(x)		((u32)(1000000/x+0.5))
+#define US2MT(v)		(v)//((v)*(u64)MCK/2/1000000)
+
+#define MANT_IRQ		TCC0_IRQ
+#define MANT_IRQ_2		TCC0_IRQ
+
+#define MANR_IRQ		TCC1_IRQ
+//#define MANR_EXTINT		11
+
+#define MANR_EXTINT		0
+#define MANIT_EVSYS_CHANNEL	(EVENT_MANR_1 | EVSYS_GEN_EIC_EXTINT_0 | EVSYS_PATH_ASYNCHRONOUS)
+#define MANIT_EVSYS_USER	(EVSYS_USER_TC6_EVU | EVSYS_USER_CHANNEL(EVENT_MANR_1))
+
+#define MANR_EVSYS_CHANNEL	(EVENT_MANR_2 | EVSYS_GEN_TC6_OVF | EVSYS_PATH_ASYNCHRONOUS | EVSYS_EDGSEL_RISING_EDGE)
+#define MANR_EVSYS_USER1	(EVSYS_USER_TCC1_EV_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
+#define MANR_EVSYS_USER2	(EVSYS_USER_TCC1_MC_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
+
+
+#define BOUD2CLK(x)		((u32)(1000000/x+0.5))
+#define ManRxd()		(HW::PIOA->IN & 1)
+
+
+#define PIO_MANCH		HW::PIOA
+#define PIN_M1			8 
+#define PIN_M2			9 
+#define PIN_TLS			0
+#define M1				(1<<PIN_M1)
+#define M2				(1<<PIN_M2)
+#define TLS				(1<<PIN_TLS)
+
+#define Pin_ManRcvIRQ_Set()	HW::PIOA->BSET(1)
+#define Pin_ManRcvIRQ_Clr()	HW::PIOA->BCLR(1)
+
+#define Pin_ManTrmIRQ_Set()	HW::PIOB->BSET(2)		
+#define Pin_ManTrmIRQ_Clr()	HW::PIOB->BCLR(2)		
+
+#define Pin_ManRcvSync_Set()	HW::PIOB->BSET(3)		
+#define Pin_ManRcvSync_Clr()	HW::PIOB->BCLR(3)		
+
+#define PIO_D_FIRE		HW::PIOA
+#define PIO_DNNK		HW::PIOA
+#define PIN_D_FIRE		16
+#define PIN_DNNKB		24
+#define PIN_DNNKM		25
+#define D_FIRE			(1<<PIN_D_FIRE)
+#define DNNKB			(1<<PIN_DNNKB)
+#define DNNKM			(1<<PIN_DNNKM)
+
+#define DNNKB_EXTINT	12
+#define DNNKM_EXTINT	13
+
+#define DNNKB_EVSYS_GEN_EIC_EXTINT	EVSYS_GEN_EIC_EXTINT_12
+#define DNNKM_EVSYS_GEN_EIC_EXTINT	EVSYS_GEN_EIC_EXTINT_13
+
+#define DNNKB_EVSYS_USER	(EVSYS_USER_CHANNEL(EVENT_DNNKB)|EVSYS_USER_TC4_EVU)
+#define DNNKB_EVSYS_CHANNEL	(EVENT_DNNKB|DNNKB_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES)
+
+#define DNNKM_EVSYS_USER	(EVSYS_USER_CHANNEL(EVENT_DNNKM)|EVSYS_USER_TC5_EVU)
+#define DNNKM_EVSYS_CHANNEL	(EVENT_DNNKM|DNNKM_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES)
 
 static void InitVectorTable();
 
@@ -71,28 +179,16 @@ extern "C" void SystemInit()
 
 	//while ((SYSCTRL->DPLLSTATUS & 7) != 7);
 
-	HW::GCLK->GenDivCtrl(0, 0,	GCLK_SRC_FDPLL|GCLK_GENEN|GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_MCK,	0,	GCLK_SRC_FDPLL	|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_1M,	16,	GCLK_SRC_XOSC	|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_16M,	1,	GCLK_SRC_XOSC	|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_500K,	32,	GCLK_SRC_XOSC	|	GCLK_GENEN	| GCLK_OE);
 
-	HW::GCLK->GenDivCtrl(1, 16,	GCLK_SRC_XOSC|GCLK_GENEN|GCLK_OE);
+	HW::PIOB->SetWRCONFIG(PB22|PB23, PORT_PMUX_H | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
 
-	HW::GCLK->GenDivCtrl(3, 1,	GCLK_SRC_XOSC|GCLK_GENEN|GCLK_OE);
-
-	HW::GCLK->GenDivCtrl(4, 32,	GCLK_SRC_XOSC|GCLK_GENEN|GCLK_OE);
-
-	//HW::GCLK->GENDIV	= 0|GCLK_DIV(0);
-	//HW::GCLK->GENCTRL	= 0|GCLK_GENEN|GCLK_OE|GCLK_SRC_FDPLL;
-
-	//HW::GCLK->GENDIV	= 1|GCLK_DIV(16);
-	//HW::GCLK->GENCTRL	= 1|GCLK_GENEN|GCLK_OE|GCLK_SRC_XOSC;
-
-	//HW::GCLK->GENDIV	= 3|GCLK_DIV(1);
-	//HW::GCLK->GENCTRL	= 3|GCLK_GENEN|GCLK_OE|GCLK_SRC_XOSC;
-
-	//HW::GCLK->GENDIV	= 4|GCLK_DIV(32);
-	//HW::GCLK->GENCTRL	= 4|GCLK_GENEN|GCLK_OE|GCLK_SRC_XOSC;
-
-	HW::PIOB->PMUX[22/2] = 0x77;
-	HW::PIOB->PINCFG[22] = 0x41;
+	//HW::PIOB->PMUX[22/2] = 0x77;
+	HW::PIOB->PINCFG[22] = PINGFG_DRVSTR|PINGFG_PMUXEN;
+	HW::PIOB->PINCFG[23] = PINGFG_DRVSTR|PINGFG_PMUXEN;
 
 	HW::DMAC->CTRL = 0;
 	HW::DMAC->BASEADDR	= DmaTable;
@@ -192,9 +288,10 @@ void SetGenFreq(u16 freq)
 
 	options.gen_freq = gen_freq = freq;
 
-	gen_period = (1000000UL + (gen_freq>>1)) / gen_freq - 1;
+	gen_period = ((1000000UL / 16) + (gen_freq>>1)) / gen_freq - 1;
 
 	GenTCC->PER = gen_period;
+	GenTCC->CTRLBSET = TCC_CMD_UPDATE;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -247,14 +344,7 @@ static void UpdateGenTime()
 
 void EnableGen()
 {
-	//TCC0.CTRLB = TC_WGMODE_SS_gc|0x10;
-	//TCC0.CTRLE = 0; 		
-	//TCC0.PER = gen_period;
-	//TCC0.CCA = (15 * CPU_FREQ + 32 * 1000000) / (1000000 * 64);
-	//TCC0.INTCTRLA = 0;
-	//TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;
-	//TCC0.CTRLA = TC_CLKSEL_DIV64_gc;
-	HW::PIOA->PINCFG[16] = 1;
+	PIO_D_FIRE->PINCFG[PIN_D_FIRE] = PINGFG_PMUXEN;
 
 	genTimeOut = 60000;
 }
@@ -263,7 +353,7 @@ void EnableGen()
 
 void DisableGen()
 {
-	HW::PIOA->PINCFG[16] = 0;
+	PIO_D_FIRE->PINCFG[PIN_D_FIRE] = 0;
 	genTimeOut = 0;
 
 //	TCC0.CTRLB = TC_WGMODE_SS_gc;
@@ -290,7 +380,7 @@ static __irq void GenIRQ()
 	bTC->CTRLBSET = TC_CMD_RETRIGGER;
 	mTC->CTRLBSET = TC_CMD_RETRIGGER;
 
-//	if (TCC0.CTRLB & 0x10) { fireCount += 1; };
+	if (PIO_D_FIRE->PINCFG[PIN_D_FIRE] & PINGFG_PMUXEN) { fireCount += 1; };
 
 	PIOA->BCLR(17);
 }
@@ -305,8 +395,8 @@ static __irq void WinIRQ()
 
 	WinTC->INTFLAG = ~0;
 
-	b_ts[cur_ts_index] += bTC->COUNT;
-	m_ts[cur_ts_index] += mTC->COUNT;
+	b_ts[cur_ts_index] += bTC->COUNT16;
+	m_ts[cur_ts_index] += mTC->COUNT16;
 
 	bTC->CTRLBSET = TC_CMD_RETRIGGER;
 	mTC->CTRLBSET = TC_CMD_RETRIGGER;
@@ -328,28 +418,35 @@ void InitGen()
 {
 	using namespace HW;
 
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC2_TC3|GCLK_GEN(1)|GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_TC4_TC5|GCLK_GEN(0)|GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC2_TC3	|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TC4_TC5		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_1		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKB
+	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_2		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKM
 
 	PM->APBCMASK |= PM_APBC_TCC2|PM_APBC_TC3|PM_APBC_TC4|PM_APBC_TC5;
+	PM->APBCMASK |= PM_APBC_EVSYS;
 
 	HW::PIOA->DIRSET = D_FIRE|(7<<17);;
 	HW::PIOA->CLR(D_FIRE);
 
-	//HW::PIOA->PINCFG[16] = 1;
-	HW::PIOA->SetWRCONFIG(1<<16, PORT_PMUX(4)|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX);
+	PIO_D_FIRE->SetWRCONFIG(D_FIRE,		PORT_PMUX(4) | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
+	PIO_DNNK->SetWRCONFIG(DNNKB|DNNKM,	PORT_PMUX(0) | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
 
-	//HW::PIOA->PINCFG[24] = 1;
-	//HW::PIOA->PINCFG[25] = 1;
-	//HW::PIOA->SetPinMux(24, 0);
-	//HW::PIOA->SetPinMux(25, 0);
-	HW::PIOA->SetWRCONFIG((1<<24)|(1<<25), PORT_PMUX(0)|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX);
+	EIC->EVCTRL |= (EIC_EXTINT0 << DNNKB_EXTINT) | (EIC_EXTINT0 << DNNKM_EXTINT);
+	EIC->SetConfig(DNNKB_EXTINT, 0, EIC_SENSE_HIGH);
+	EIC->SetConfig(DNNKM_EXTINT, 0, EIC_SENSE_HIGH);
+	EIC->INTENCLR = (EIC_EXTINT0 << DNNKB_EXTINT) | (EIC_EXTINT0 << DNNKM_EXTINT);
+	EIC->CTRL = EIC_ENABLE;
 
+	EVSYS->USER		= DNNKB_EVSYS_USER;
+	EVSYS->CHANNEL	= DNNKB_EVSYS_CHANNEL;
+
+	EVSYS->USER		= DNNKM_EVSYS_USER;
+	EVSYS->CHANNEL	= DNNKM_EVSYS_CHANNEL;
 
 	bTC->CTRLA = TC_SWRST;
 	mTC->CTRLA = TC_SWRST;
 	while((bTC->STATUS|mTC->STATUS) & TC_SYNCBUSY);
-
 
 	bTC->READREQ = TC_RCONT|0x10;
 	mTC->READREQ = TC_RCONT|0x10;
@@ -357,8 +454,8 @@ void InitGen()
 	bTC->EVCTRL = TC_TCEI|TC_EVACT_COUNT;
 	mTC->EVCTRL = TC_TCEI|TC_EVACT_COUNT;
 
-	bTC->CC[0] = ~1;
-	mTC->CC[0] = ~1;
+	bTC->CC16[0] = ~1;
+	mTC->CC16[0] = ~1;
 
 	bTC->CTRLA = TC_WAVEGEN_MFRQ|TC_ENABLE;
 	mTC->CTRLA = TC_WAVEGEN_MFRQ|TC_ENABLE;
@@ -370,16 +467,16 @@ void InitGen()
 
 	WinTC->READREQ = TC_RCONT|0x18;
 
-	WinTC->CC[0] = windowTime - 1; // временнќе окно
+	WinTC->CC16[0] = windowTime - 1; // временнќе окно
 	WinTC->CTRLA = TC_WAVEGEN_MFRQ;
 	//WinTC->CTRLA = TC_ENABLE|TC_WAVEGEN_MFRQ;
 	//while(WinTC->STATUS & TC_SYNCBUSY);
 	//WinTC->CTRLBSET = TC_CMD_STOP;
 
 
-	VectorTableExt[TC3_IRQ] = WinIRQ;
-	CM0::NVIC->ICPR[0] = 1 << TC3_IRQ;
-	CM0::NVIC->ISER[0] = 1 << TC3_IRQ;	
+	VectorTableExt[WIN_IRQ] = WinIRQ;
+	CM0::NVIC->ICPR[0] = 1 << WIN_IRQ;
+	CM0::NVIC->ISER[0] = 1 << WIN_IRQ;	
 
 	// Gen timer
 
@@ -387,12 +484,12 @@ void InitGen()
 
 	while(GenTCC->SYNCBUSY);
 
-	VectorTableExt[TCC2_IRQ] = GenIRQ;
-	CM0::NVIC->ICPR[0] = 1 << TCC2_IRQ;
-	CM0::NVIC->ISER[0] = 1 << TCC2_IRQ;	
+	VectorTableExt[GEN_IRQ] = GenIRQ;
+	CM0::NVIC->ICPR[0] = 1 << GEN_IRQ;
+	CM0::NVIC->ISER[0] = 1 << GEN_IRQ;	
 
 
-	GenTCC->WAVE = 2;
+	GenTCC->WAVE = TCC_WAVEGEN_NPWM;
 	GenTCC->PER = gen_period;
 	GenTCC->CC[0] = 1;
 
@@ -444,10 +541,6 @@ inline void ManZero()		{ HW::PIOA->CLR(M2); HW::PIOA->SET(M1); }
 
 //static byte manInv = 0;
 
-#define BOUD2CLK(x) ((u32)(1000000/x+0.5))
-#define ManTmr		HW::TCC0
-#define ManRT		HW::TCC1
-#define ManRxd()	(HW::PIOA->IN & 1)
 
 static const u16 manboud[4] = { BOUD2CLK(20833), BOUD2CLK(41666), BOUD2CLK(62500), BOUD2CLK(83333) };//0:20833Hz, 1:41666Hz,2:62500Hz,3:83333Hz
 
@@ -492,6 +585,20 @@ static u16 rcvManCount = 0;
 static u16 rcvManLen = 0;
 static u32 rcvManPrevTime = 0;
 
+static u16 rcvManLen72 = 0;
+static u16 rcvManLen96 = 0;
+static u16 rcvManLen24 = 0;
+static u16 rcvManLen48 = 0;
+
+static u32 rcvManSum72 = 0;
+static u32 rcvManSum96 = 0;
+static u32 rcvManSum24 = 0;
+static u32 rcvManSum48 = 0;
+
+static u16 rcvManCount72 = 0;
+static u16 rcvManCount96 = 0;
+static u16 rcvManCount24 = 0;
+static u16 rcvManCount48 = 0;
 
 static MRB *manRB = 0;
 
@@ -623,8 +730,8 @@ static __irq void MLT3_TrmIRQ()
 			MltOff();
 			stateMLT3 = 0;
 
-			ManTmr->CTRLA = 0;
-			ManTmr->INTENCLR = ~0;
+			ManTT->CTRLA = 0;
+			ManTT->INTENCLR = ~0;
 
 			mltTB->ready = true;
 			mltBusy = false;
@@ -634,7 +741,7 @@ static __irq void MLT3_TrmIRQ()
 
 	}; // 	switch (stateManTrans)
 
-	ManTmr->INTFLAG = ~0;//TCC_OVF;
+	ManTT->INTFLAG = ~0;//TCC_OVF;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -652,21 +759,21 @@ bool SendMLT3(MTB *mtb)
 
 	stateMLT3 = 0;
 
-	ManTmr->CTRLA = 0;
+	ManTT->CTRLA = 0;
 
 	VectorTableExt[TCC0_IRQ] = MLT3_TrmIRQ;
 	CM0::NVIC->ICPR[0] = 1 << TCC0_IRQ;
 	CM0::NVIC->ISER[0] = 1 << TCC0_IRQ;	
 
-	ManTmr->PER = trmHalfPeriod-1;
-	//ManTmr->EVCTRL = 1<<6;
+	ManTT->PER = trmHalfPeriod-1;
+	//ManTT->EVCTRL = 1<<6;
 
-	ManTmr->INTENCLR = ~TCC_OVF;
-	ManTmr->INTENSET = TCC_OVF;
+	ManTT->INTENCLR = ~TCC_OVF;
+	ManTT->INTENSET = TCC_OVF;
 
-	ManTmr->INTFLAG = ~0;
+	ManTT->INTFLAG = ~0;
 
-	ManTmr->CTRLA = TCC_ENABLE;
+	ManTT->CTRLA = TCC_ENABLE;
 
 	//HW::PIOB->IDR = 1;
 
@@ -827,8 +934,8 @@ static __irq void ManTrmIRQ()
 			ManDisable();
 			stateManTrans = 0;
 
-			ManTmr->CTRLA = 0;
-			ManTmr->INTENCLR = ~0;
+			ManTT->CTRLA = 0;
+			ManTT->INTENCLR = ~0;
 
 			manTB->ready = true;
 			trmBusy = false;
@@ -839,7 +946,11 @@ static __irq void ManTrmIRQ()
 	}; // 	switch (stateManTrans)
 
 
-	ManTmr->INTFLAG = ~0;//TCC_OVF;
+	__dsb(15);
+
+	ManTT->INTFLAG = TCC_OVF;
+
+	__dsb(15);
 
 //	HW::PIOA->BCLR(13);
 }
@@ -859,21 +970,21 @@ bool SendManData(MTB *mtb)
 
 	stateManTrans = 0;
 
-	ManTmr->CTRLA = 0;
+	ManTT->CTRLA = 0;
 
 	VectorTableExt[TCC0_IRQ] = ManTrmIRQ;
 	CM0::NVIC->ICPR[0] = 1 << TCC0_IRQ;
 	CM0::NVIC->ISER[0] = 1 << TCC0_IRQ;	
 
-	ManTmr->PER = trmHalfPeriod-1;
-	//ManTmr->EVCTRL = 1<<6;
+	ManTT->PER = trmHalfPeriod-1;
+	//ManTT->EVCTRL = 1<<6;
 
-	ManTmr->INTENCLR = ~TCC_OVF;
-	ManTmr->INTENSET = TCC_OVF;
+	ManTT->INTENCLR = ~TCC_OVF;
+	ManTT->INTENSET = TCC_OVF;
 
-	ManTmr->INTFLAG = ~0;
+	ManTT->INTFLAG = ~0;
 
-	ManTmr->CTRLA = TCC_ENABLE;
+	ManTT->CTRLA = TCC_ENABLE;
 
 	return trmBusy = true;
 }
@@ -884,187 +995,302 @@ static void InitManTransmit()
 {
 	using namespace HW;
 
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1|GCLK_GEN(1)|GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_1M) | GCLK_CLKEN;
 
 	PM->APBCMASK |= PM_APBC_TCC0;
 
 	HW::PIOA->DIRSET = M1|M2;
 
-	ManTmr->CTRLA = TCC_SWRST;
+	ManTT->CTRLA = TCC_SWRST;
 
-	while(ManTmr->SYNCBUSY);
+	while(ManTT->SYNCBUSY);
 
-	VectorTableExt[TCC0_IRQ] = ManTrmIRQ;
-	CM0::NVIC->ICPR[0] = 1 << TCC0_IRQ;
-	CM0::NVIC->ISER[0] = 1 << TCC0_IRQ;	
+	VectorTableExt[MANT_IRQ] = ManTrmIRQ;
+	CM0::NVIC->ICPR[0] = 1 << MANT_IRQ;
+	CM0::NVIC->ISER[0] = 1 << MANT_IRQ;	
 
 	SetTrmBoudRate(0);
 
-	ManTmr->PER = trmHalfPeriod-1;
-	//ManTmr->EVCTRL = 1<<6;
+	ManTT->PER = trmHalfPeriod-1;
+	//ManTT->EVCTRL = 1<<6;
 
-	ManTmr->INTENCLR = ~TCC_OVF;
-	ManTmr->INTENSET = TCC_OVF;
+	ManTT->INTENCLR = ~TCC_OVF;
+	ManTT->INTENSET = TCC_OVF;
 
-	ManTmr->INTFLAG = ~0;
+	ManTT->INTFLAG = ~0;
 
-	//ManTmr->CTRLA = TCC_ENABLE;
+	//ManTT->CTRLA = TCC_ENABLE;
 
 	ManDisable();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+byte stateMT = 0;
+static MTB *manTB2 = 0;
+static bool trmBusy2 = false;
+static bool trmTurbo = false;
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static __irq void ManTrmIRQ_2()
+{
+	static u32 tw = 0;
+	static u16 count = 0;
+	static const u16 *data = 0;
+	static u16 len = 0;
+
+	HW::PIOA->BSET(10);
+
+	switch (stateMT)
+	{
+		case 0:	// 1-st sync imp 
+
+			HW::PIOA->BSET(11); 
+
+			data = manTB2->data;
+			len = manTB2->len;
+
+			ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
+			stateMT++;
+
+			break;
+
+		case 1:	// 2-nd sync imp
+
+			tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
+
+			data++;
+			len--;
+
+			count = 17;
+
+			if (tw & 0x10000)
+			{
+				ManTT->CC[0] += trmHalfPeriod*4; //US2MT(96);
+				ManTT->CC[1] += trmHalfPeriod*4; //US2MT(96);
+				stateMT += 2;
+			}
+			else
+			{
+				ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
+				ManTT->CC[1] += trmHalfPeriod*3; //US2MT(72);
+				stateMT++;
+			};
+ 
+			break;
+
+		case 2: // 1-st half bit
+
+			ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+			ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+			stateMT++;
+
+			break;
+
+		case 3:	// 2-nd half bit
+
+			count--;
+
+			if (count != 0)
+			{
+				u32 t = tw;
+				tw <<= 1;
+
+				t = (t ^ tw) & 0x10000;
+
+				if (t)
+				{
+					ManTT->CC[0] += trmHalfPeriod*2; //US2MT(48);
+					ManTT->CC[1] += trmHalfPeriod*2; //US2MT(48);
+					stateMT = 3;
+				}
+				else
+				{
+					ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+					ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+					stateMT = 2;
+				};
+			}
+			else
+			{
+				if (len == 0)
+				{
+					if (manTB2->next != 0)
+					{
+						manTB2->ready = true;
+
+						manTB2 = manTB2->next;
+
+						len = manTB2->len;
+						data = manTB2->data;
+					};
+				};
+
+				if (len > 0)
+				{
+					if (!trmTurbo)
+					{
+						if (tw & 0x10000)
+						{
+							ManTT->CC[0] += trmHalfPeriod*4;
+							ManTT->CC[1] += trmHalfPeriod*4;
+							stateMT = 1;
+						}
+						else
+						{
+							ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+							ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+							stateMT++;
+						};
+					}
+					else
+					{
+						tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
+
+						data++;
+						len--;
+
+						count = 17;
+
+						if (tw & 0x10000)
+						{
+							ManTT->CC[0] += trmHalfPeriod*4; //US2MT(96);
+							ManTT->CC[1] += trmHalfPeriod*4; //US2MT(96);
+							stateMT = 3;
+						}
+						else
+						{
+							ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
+							ManTT->CC[1] += trmHalfPeriod*3; //US2MT(72);
+							stateMT = 2;
+						};
+					};
+				}
+				else
+				{
+					ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+					ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+
+					stateMT += 2;
+				}
+			};
+
+			break;
+
+		case 4:
+
+			ManTT->CC[0] += trmHalfPeriod*3;
+			ManTT->CC[1] += trmHalfPeriod*3;
+			stateMT = 1;
+
+			break;
+
+		case 5:
+
+//			ManDisable();
+			stateMT = 0;
+
+			ManTT->CTRLA = 0;
+			ManTT->INTENCLR = ~0;
+
+			manTB2->ready = true;
+			trmBusy2 = false;
+
+			break;
+
+
+	}; // 	switch (stateManTrans)
+
+
+	ManTT->INTFLAG = TCC_MC0;
+
+	ManTT->CTRLBSET = TCC_CMD_UPDATE;
+
+	HW::PIOA->BCLR(10);
+	HW::PIOA->BCLR(11);
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool SendManData_2(MTB *mtb)
+{
+	if (trmBusy2 || mtb == 0 || mtb->data == 0 || mtb->len == 0)
+	{
+		return false;
+	};
+
+	mtb->ready = false;
+
+	manTB2 = mtb;
+
+	stateMT = 0;
+
+	ManTT->CTRLA = TCC_PRESCALER_DIV1;
+	ManTT->WAVE = TCC_WAVEGEN_NFRQ;//|TCC_POL0;
+	ManTT->DRVCTRL = 0;//TCC_INVEN1;
+	ManTT->PER = 0xFFFFFF;
+	ManTT->CC[0] = US2MT(100); 
+	ManTT->CC[1] = US2MT(100)+trmHalfPeriod*3; 
+
+	ManTT->EVCTRL = 0;
+
+	ManTT->INTENCLR = ~0;
+	ManTT->INTENSET = TCC_MC0;
+	ManTT->INTFLAG = TCC_MC0;
+
+	//ManTT->CTRLBCLR = TCC_LUPD;
+
+	//while(ManTT->SYNCBUSY);
+
+	ManTT->CTRLA = TCC_ENABLE|TCC_PRESCALER_DIV1;
+	ManTT->CTRLBSET = TCC_CMD_RETRIGGER;
+
+	return trmBusy2 = true;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void InitManTransmit_2()
+{
+	using namespace HW;
+
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_1M) | GCLK_CLKEN;
+
+	PM->APBCMASK |= PM_APBC_TCC0;
+
+	PIO_MANCH->DIRCLR = M1|M2;
+	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_PMUX_E|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX|PORT_PULLEN);
+
+	ManTT->CTRLA = TCC_SWRST;
+
+	while(ManTT->SYNCBUSY);
+
+	ManTT->DBGCTRL = 1;
+
+	VectorTableExt[MANT_IRQ_2] = ManTrmIRQ_2;
+	CM0::NVIC->CLR_PR(MANT_IRQ_2);
+	CM0::NVIC->SET_ER(MANT_IRQ_2);
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static void ManRcvEnd(bool ok)
 {
-	ManRT->INTENCLR = TCC_OVF;
+	ManRT->INTENCLR = ~0;
 
 	manRB->OK = ok;
 	manRB->ready = true;
 	manRB->len = rcvManLen;
+
+	rcvManLen96 = (rcvManCount96 != 0) ? (rcvManSum96 / rcvManCount96) : 0;
+	rcvManLen72 = (rcvManCount72 != 0) ? (rcvManSum72 / rcvManCount72) : 0;
+	rcvManLen48 = (rcvManCount48 != 0) ? (rcvManSum48 / rcvManCount48) : 0;
+	rcvManLen24 = (rcvManCount24 != 0) ? (rcvManSum24 / rcvManCount24) : 0;
 	
 	rcvBusy = false;
 }
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-/*
-class Receiver
-{
-	private:
-		u32 _number;
-		u32 _length;
-		u32 _data_temp;
-		u32 _data;
-		bool _command_temp;
-		bool _command;
-		bool _parity_temp;
-		bool _parity;
-		bool _sync;
-		bool _state;
-
-    public:
-
-		enum status_type
-		{
-			STATUS_WAIT = 0,
-			STATUS_SYNC,
-			STATUS_HANDLE,
-			STATUS_CHECK,
-			STATUS_READY,
-			STATUS_ERROR_LENGTH,
-			STATUS_ERROR_STRUCT,
-		};
-
-		Receiver(bool parity);
-		status_type Parse(u16 len);	
-		u16 GetData() { return _data; }
-		bool GetType() { return _command; }
-};
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-Receiver::Receiver(bool parity)
-{
-	_state = false;
-	_number = 0;
-	_length = 0;
-	_data_temp = 0;
-	_data = 0;
-	_command_temp = false;
-	_command = false;
-	_parity = parity;
-	_parity_temp = false;
-	_sync = false;
-}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-Receiver::status_type Receiver::Parse(u16 len)
-{	
-	_state = !_state;
-
-	if((len <= 12) || (len > 108))
-	{
-//		HW::PIOB->SODR = 1<<10;
-
-		_number = 0;
-		_length = 0;
-		_sync = false;
-
-//		HW::PIOB->CODR = 1<<10;
-
-		return STATUS_ERROR_LENGTH;
-	}
-	else if(len <= 36)                
-	{	
-		_length++;
-	}
-	else if(len <= 60)
-	{	
-		_length += 2;
-	}
-	else
-	{
-		HW::PIOA->BSET(3);
-
-		_sync = true;
-		_data_temp = 0;
-		_parity_temp = _parity;
-		_number = 0;
-		_length = (len <= 84) ? 1 : 2;
-		_command_temp = !_state; 
-	};
-
-	if(_length >= 3)
-	{
-		_number = 0;
-		_length = 0;
-		_sync = false;
-
-
-		return STATUS_ERROR_STRUCT;
-	};
-
-	if(_sync)
-	{
-		if(_length == 2)
-		{
-			if(_number < 16)
-			{
-				_data_temp <<= 1;
-				_data_temp |= _state;
-				_parity_temp ^= _state;
-				_number ++;
-				_length = 0;
-			}
-		 	else
-			{
-				_data = _data_temp;
-				_data_temp = 0;
-				_command = _command_temp;
-				_command_temp = false;
-				_number = 0;
-				_length = 0;
-				_sync = false;
-
-				if(_state != _parity_temp)
-				{
-					_state = !_state;
-					_data = (~_data);
-					_command = !_command;
-				};
-
-				return STATUS_READY;
-			};
-		};
-
-		return (_number < 16) ? STATUS_HANDLE : STATUS_CHECK;
-	};
-
-	return STATUS_WAIT;
-}
-*/
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //static Receiver manRcv(true);
@@ -1077,214 +1303,7 @@ u32 manRcvTime2 = 0;
 u32 manRcvTime3 = 0;
 u32 manRcvTime4 = 0;
 
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static __irq void ManRcvIRQ()
-{
-	using namespace HW;
-
-	//static byte n;
-	//static u32 rw;
-
-	static u32 _number = 0;
-	static u32 _length = 0;
-	static u32 _data_temp = 0;
-	static u32 _data = 0;
-	static bool _command_temp = false;
-	static bool _command = false;
-	static bool _parity_temp = false;
-	//static bool _parity = false;
-	static bool _sync = false;
-	static bool _state = false;
-
-	HW::PIOA->BSET(1);
-
-
-	//ManRT->CC[1] += 48;
- 
-	u32 t = GetRTT();
-	u32 len = t - manRcvTime1;
-	manRcvTime1 = t;
-
-	_state = !((bool)ManRxd());
-
-	switch (manRcvState)
-	{
-		case 0: //+++++++++++++++++++++++++++++++++++++++
-
-			if (len <= 60)
-			{
-				if(len <= 36)                
-				{	
-					_length++;
-				}
-				else
-				{	
-					_length += 2;
-				};
-
-				if(_length >= 3)
-				{
-					_number = 0;
-					_length = 0;
-					_sync = false;
-
-			//		return STATUS_ERROR_STRUCT;
-					//break;
-				};
-			}
-			else
-			{
-
-				if(len > 108)
-				{
-					_number = 0;
-					_length = 0;
-					_sync = false;
-					
-					//break;
-				}
-				else
-				{
-					_sync = true;
-					_data_temp = 0;
-					_parity_temp = false;//_parity;
-					_number = 0;
-					_length = (len <= 84) ? 1 : 2;
-					_command_temp = !_state; 
-
-					rcvManPrevTime = t;
-				};
-			};
-
-			if(_sync && _length == 2)
-			{
-				ManRT->PER = 35;
-				//ManRT->COUNT = 12;
-				//ManRT->CTRLBCLR = TCC_ONESHOT;
-				//ManRT->CTRLBSET = TCC_CMD_RETRIGGER;
-
-				EVSYS->CHANNEL = 0|EVSYS_GEN_EIC_EXTINT_0|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_NO_EVT_OUTPUT;
-
-				_data_temp <<= 1;
-
-				//u32 s = ManRxd();
-				//_state = s;
-
-//				HW::PIOA->SET(s<<3);
-
-				_data_temp |= _state;
-				_parity_temp ^= _state;
-				_number ++;
-				_length = 0;
-
-				rcvManPrevTime = t;
-
-				manRcvState++;
-			}
-			else
-			{
-				ManRT->CTRLBSET = TCC_CMD_STOP;
-			};
-
-			break;
-
-		case 1: //+++++++++++++++++++++++++++++++++++++++
-
-//			HW::PIOA->BSET(3);
-
-			if(_number < 16)
-			{
-//				u32 s = ManRxd();
-
-//				HW::PIOA->SET(s<<3);
-				//_state = s;
-
-				ManRT->PER = 47;
-
-				_data_temp <<= 1;
-				_data_temp |= _state;
-				_parity_temp ^= _state;
-				_number ++;
-				_length = 0;
-			}
- 			else
-			{
-				//HW::PIOA->BSET(3);
-
-				ManRT->PER = 11;
-				ManRT->CTRLBSET = TCC_CMD_STOP;
-
-				EVSYS->CHANNEL = 0|EVSYS_GEN_EIC_EXTINT_0|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES;
-
-				manRcvState = 0;
-
-				manRcvTime1 += 24;
-
-				_data = _data_temp;
-				_data_temp = 0;
-				_command = _command_temp;
-				_command_temp = false;
-				_number = 0;
-				_length = 0;
-				_sync = false;
-
-				if(_state == _parity_temp)
-				{
-					_state = !_state;
-					_data = (~_data);
-					_command = !_command;
-				};
-
-				if (rcvManLen == 0)
-				{
-					if(_command)
-					{
-						HW::PIOA->BSET(2);
-
-						*rcvManPtr++ = _data;//manRcv.GetData();
-						rcvManLen = 1;
-					};
-
-//					HW::PIOA->BCLR(3);
-				}
-				else 
-				{
-//					HW::PIOA->BSET(3);
-
-					if(rcvManLen < rcvManCount)
-					{
-						*rcvManPtr++ = _data;//manRcv.GetData();
-					};
-
-					rcvManLen += 1;	
-				};
-			};
-
-			rcvManPrevTime = t;
-
-			break;
-
-	};
-
-
-
-
-
-
-	//if(manRcv.Parse(dt) == manRcv.STATUS_READY)
-	//{
-	//};
-
-
-
-
-
-	ManRT->INTFLAG = ~0;
-
-	HW::PIOA->CLR((1<<1)|(1<<2)|(1<<3));
-}
+static RTM32 manRcvTime;
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1301,45 +1320,56 @@ static __irq void ManRcvIRQ2()
 	static bool _sync = false;
 	static bool _state = false;
 
-	HW::PIOA->BSET(1);
- 
-	u32 t = GetRTT();
-	u32 len = t - manRcvTime1;
-	manRcvTime1 = t;
+	Pin_ManRcvIRQ_Set();
+
+	u32 len = ManRT->CC[0];
 
 	_state = !_state;
 
-	if (len <= 60)
+	if (len <= MT(60))
 	{
-		_length += (len <= 36) ? 1 : 2;
-
-		if(_length >= 3)
+		if (len <= MT(36))
 		{
-			_sync = false;
+			_length += 1; rcvManSum24 += len; rcvManCount24++;
+		}
+		else
+		{
+			_length += 2; rcvManSum48 += len; rcvManCount48++;
 		};
+
+		if(_length >= 3) { _sync = false; };
 	}
 	else
 	{
-		if(len > 108)
+		if(len > MT(108))
 		{
 			_sync = false;
 		}
 		else
 		{
-			HW::PIOA->BSET(2);
+			manRcvTime.Reset();
 
 			_sync = true;
 			_data = 0;
 			_parity_temp = _parity;
 			_number = 0;
-			_length = (len <= 84) ? 1 : 2;
 			_command = !_state; 
+
+			if (len <= MT(84))
+			{
+				_length = 1; rcvManSum72 += len; rcvManCount72++;
+			}
+			else
+			{
+				_length = 2; rcvManSum96 += len; rcvManCount96++;
+			};
+
 		};
 	};
 
 	if(_sync && _length == 2)
 	{
-		HW::PIOA->BSET(3);
+		manRcvTime.Reset();
 
 		if(_number < 16)
 		{
@@ -1351,7 +1381,7 @@ static __irq void ManRcvIRQ2()
 		}
 	 	else
 		{
-			HW::PIOA->BSET(2);
+			Pin_ManRcvSync_Set();
 
 			_sync = false;
 
@@ -1361,8 +1391,6 @@ static __irq void ManRcvIRQ2()
 				_data = (~_data);
 				_command = !_command;
 			};
-
-			rcvManPrevTime = t;
 
 			if (rcvManLen == 0)
 			{
@@ -1381,12 +1409,17 @@ static __irq void ManRcvIRQ2()
 
 				rcvManLen += 1;	
 			};
+
+			Pin_ManRcvSync_Clr();
 		};
 	};
 
-	ManRT->INTFLAG = ~0;
+	#ifdef CPU_SAME53	
+		ManRT->INTFLAG = ~0;
+	#elif defined(CPU_XMC48)
+	#endif
 
-	HW::PIOA->CLR((1<<1)|(1<<2)|(1<<3));
+	Pin_ManRcvIRQ_Clr();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1395,72 +1428,90 @@ void ManRcvUpdate()
 {
 	if (rcvBusy)
 	{
-		//bool c = false;//ManTmr.SR & CPCS;
+		__disable_irq();
 
-		if (rcvManLen > 0 && (GetRTT() - manRcvTime1) > US2RT(200))
+		if (rcvManLen > 0 && manRcvTime.Timeout(US2RT(200)))
 		{
-//			__disable_irq();
-
-			HW::PIOA->BSET(3);
 			ManRcvEnd(true);
-			HW::PIOA->BCLR(3);
-
-//			__enable_irq();
 		}
 		else
 		{
 			manRB->len = rcvManLen;
 		};
+
+		__enable_irq();
 	};
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-//void ManRcvStop()
-//{
-//	ManRcvEnd(true);
-//}
-//
-////++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void InitManRecieve()
 {
 	using namespace HW;
 
-	PM->APBCMASK |= PM_APBC_TCC1;
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1	| GCLK_GEN(GEN_1M) | GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TC6_TC7		| GCLK_GEN(GEN_1M) | GCLK_CLKEN;
 
-	HW::PIOA->DIRCLR = TLS;
-	HW::PIOA->CTRL |= TLS;
+	PM->APBCMASK |= PM_APBC_TCC1 | PM_APBC_TC6;
 
-	HW::PIOA->PMUX[0] = 0;
-	HW::PIOA->PINCFG[0] = 3;
+	PIO_MANCH->DIRCLR = TLS;
+	PIO_MANCH->CTRL |= TLS;
 
+	PIO_MANCH->SetWRCONFIG(TLS, PORT_PMUX_A|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX|PORT_INEN);
+
+	EIC->EVCTRL |= EIC_EXTINT0 << MANR_EXTINT;
+	EIC->SetConfig(MANR_EXTINT, 1, EIC_SENSE_BOTH);
+	EIC->INTENCLR = EIC_EXTINT0 << MANR_EXTINT;
+	EIC->CTRL = EIC_ENABLE;
+
+	EVSYS->CHANNEL	= MANIT_EVSYS_CHANNEL;
+	EVSYS->USER		= MANIT_EVSYS_USER;		//__dsb(15);
+
+	EVSYS->CHANNEL	= MANR_EVSYS_CHANNEL;
+	EVSYS->USER		= MANR_EVSYS_USER1;		//__dsb(15);
+	EVSYS->USER		= MANR_EVSYS_USER2;		//__dsb(15);
 
 	ManRT->CTRLA = TCC_SWRST;
 
 	while(ManRT->SYNCBUSY);
 
-	VectorTableExt[TCC1_IRQ] = ManRcvIRQ2;
-	CM0::NVIC->ICPR[0] = 1 << TCC1_IRQ;
-	CM0::NVIC->ISER[0] = 1 << TCC1_IRQ;	
+	VectorTableExt[MANR_IRQ] = ManRcvIRQ2;
+	CM0::NVIC->CLR_PR(MANR_IRQ);
+	CM0::NVIC->SET_ER(MANR_IRQ);	
 
-	ManRT->CTRLA = 0;
-	ManRT->EVCTRL = TCC_TCEI0|TCC_EVACT0_RETRIGGER;
-
-	ManRT->PER = 11;
-	ManRT->CC[0] = ~0;
-	ManRT->CC[1] = ~0;
-
-	ManRT->INTENCLR = ~0;
-//	ManRT->INTENSET = TCC_OVF;
-
-	ManRT->INTFLAG = ~0;
-
-	ManRT->CTRLA = TCC_ENABLE;
-
+	ManRT->CTRLA = TCC_SWRST;
 	while(ManRT->SYNCBUSY);
 
-	ManRT->CTRLBSET = TCC_ONESHOT;
+	ManRT->CTRLA = TCC_CPTEN0;
+	ManRT->EVCTRL = TCC_MCEI0|TCC_TCEI0|TCC_EVACT0_RETRIGGER;
+
+	ManRT->PER = ~0;
+	ManRT->CC[1] = 250;
+
+	ManRT->INTENCLR = ~0;
+	//ManRT->INTENSET = TCC_MC0;
+
+	ManRT->CTRLA = TCC_CPTEN0|TCC_ENABLE;
+
+	ManIT->CTRLA = TCC_SWRST;
+
+	while(ManIT->STATUS & TC_SYNCBUSY);
+
+	ManIT->CTRLA = TC_WAVEGEN_NPWM|TC_MODE_COUNT8;
+
+	ManIT->EVCTRL = TC_TCEI|TC_EVACT_RETRIGGER|TC_OVFEO;
+
+	ManIT->PER8 = 11;
+	ManIT->CC8[0] = ~0;
+	ManIT->CC8[1] = ~0;
+
+	ManIT->INTENCLR = ~0;
+
+	ManIT->INTFLAG = ~0;
+
+	ManIT->CTRLA |= TC_ENABLE;
+
+	ManIT->CTRLBSET = TC_ONESHOT;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1472,8 +1523,6 @@ bool RcvManData(MRB *mrb)
 		return false;
 	};
 
-	//ManDisable();
-
 	mrb->ready = mrb->OK = false;
 	mrb->len = 0;
 
@@ -1484,17 +1533,16 @@ bool RcvManData(MRB *mrb)
 	rcvManPtr = manRB->data;
 	rcvManCount = manRB->maxLen;
 
-	//HW::EVSYS->CHANNEL = 0|EVSYS_GEN_EIC_EXTINT_0|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES;
-
-	//ManRT->CTRLBSET = TCC_ONESHOT;
-	//ManRT->PER = 11;
+	rcvManSum96 = 0; rcvManCount96 = 0;
+	rcvManSum72 = 0; rcvManCount72 = 0;
+	rcvManSum48 = 0; rcvManCount48 = 0;
+	rcvManSum24 = 0; rcvManCount24 = 0;
 
 	ManRT->INTFLAG = ~0;
-	ManRT->INTENSET = TCC_OVF;
+	ManRT->INTENSET = TCC_MC0;
 
 	return rcvBusy = true;
 }
-
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1606,7 +1654,7 @@ bool Check_I2C_ready()
 	{ 
 		return true; 
 	}
-	else if (HW::I2C->STATUS.BUSSTATE == BUSSTATE_IDLE)
+	else if (I2C->STATUS.BUSSTATE == BUSSTATE_IDLE)
 	{
 		twi_dsc->ready = true;
 		twi_dsc = 0;
@@ -1791,10 +1839,8 @@ void InitHardware()
 
 //	InitVectorTable();
 
-	HW::GCLK->CLKCTRL = GCLK_ID_EIC|GCLK_GEN(1)|GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_0|GCLK_GEN(1)|GCLK_CLKEN; // Manchester reciever
-	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_1|GCLK_GEN(0)|GCLK_CLKEN; // NNKB
-	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_2|GCLK_GEN(0)|GCLK_CLKEN; // NNKM
+	HW::GCLK->CLKCTRL = GCLK_ID_EIC		|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_0	|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN; // Manchester reciever
 
 	PM->APBAMASK |= PM_APBA_EIC;
 	PM->APBCMASK |= PM_APBC_EVSYS;
@@ -1803,24 +1849,10 @@ void InitHardware()
 
 	while(EIC->STATUS);
 
-	EIC->EVCTRL = EIC_EXTINT0|EIC_EXTINT12|EIC_EXTINT13;
-	EIC->CONFIG[0] = EIC_FILTEN|EIC_SENSE_LOW;
-	EIC->CONFIG[1] = (EIC_SENSE_HIGH<<16)|(EIC_SENSE_HIGH<<20);
-	EIC->INTENCLR = EIC_EXTINT0|EIC_EXTINT12|EIC_EXTINT13;
-	EIC->CTRL = EIC_ENABLE;
-
-	EVSYS->USER = EVSYS_USER_CHANNEL(0)|EVSYS_USER_TCC1_EV_0;
-	EVSYS->CHANNEL = 0|EVSYS_GEN_EIC_EXTINT_0|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES;
-
-	EVSYS->USER = EVSYS_USER_CHANNEL(1)|EVSYS_USER_TC4_EVU;
-	EVSYS->CHANNEL = 1|EVSYS_GEN_EIC_EXTINT_12|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES;
-
-	EVSYS->USER = EVSYS_USER_CHANNEL(2)|EVSYS_USER_TC5_EVU;
-	EVSYS->CHANNEL = 2|EVSYS_GEN_EIC_EXTINT_13|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES;
-
 	Init_time();
 	Init_I2C();
-	InitManTransmit();
+	//InitManTransmit();
+	InitManTransmit_2();
 	InitManRecieve();
 	InitGen();
 	Init_AD5312();
@@ -1856,9 +1888,6 @@ void UpdateHardware()
 	{
 		CALL( UpdateGenTime()		);
 		CALL( Update_AD5312();		);
-		CALL( 						);
-		CALL( 						);
-		CALL( 						);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;

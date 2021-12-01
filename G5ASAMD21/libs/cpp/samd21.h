@@ -502,6 +502,20 @@ namespace T_HW
 	#define	PORT_PULLEN       	(1<<18)
 	#define	PORT_DRVSTR       	(1<<22)
 	#define PORT_PMUX(value)	(((value)&15)<<24)
+	#define PORT_PMUX_A			(0<<24)
+	#define PORT_PMUX_B			(1<<24)
+	#define PORT_PMUX_C			(2<<24)
+	#define PORT_PMUX_D			(3<<24)
+	#define PORT_PMUX_E			(4<<24)
+	#define PORT_PMUX_F			(5<<24)
+	#define PORT_PMUX_G			(6<<24)
+	#define PORT_PMUX_H			(7<<24)
+	#define PORT_PMUX_I			(8<<24)
+	#define PORT_PMUX_J			(9<<24)
+	#define PORT_PMUX_K			(10<<24)
+	#define PORT_PMUX_L			(11<<24)
+	#define PORT_PMUX_M			(12<<24)
+	#define PORT_PMUX_N			(13<<24)
 	#define	PORT_WRPMUX       	(1<<28)
 	#define	PORT_WRPINCFG      	(1<<30)
 	#define	PORT_HWSEL_LO      	(0<<31)
@@ -555,6 +569,72 @@ namespace T_HW
 	#define	PINGFG_INEN			(1<<1)
 	#define	PINGFG_PULLEN       (1<<2)
 	#define	PINGFG_DRVSTR       (1<<6)
+
+	#define PA00 (1U<<0)
+	#define PA01 (1U<<1)
+	#define PA02 (1U<<2)
+	#define PA03 (1U<<3)
+	#define PA04 (1U<<4)
+	#define PA05 (1U<<5)
+	#define PA06 (1U<<6)
+	#define PA07 (1U<<7)
+	#define PA08 (1U<<8)
+	#define PA09 (1U<<9)
+	#define PA10 (1U<<10)
+	#define PA11 (1U<<11)
+	#define PA12 (1U<<12)
+	#define PA13 (1U<<13)
+	#define PA14 (1U<<14)
+	#define PA15 (1U<<15)
+	#define PA16 (1U<<16)
+	#define PA17 (1U<<17)
+	#define PA18 (1U<<18)
+	#define PA19 (1U<<19)
+	#define PA20 (1U<<20)
+	#define PA21 (1U<<21)
+	#define PA22 (1U<<22)
+	#define PA23 (1U<<23)
+	#define PA24 (1U<<24)
+	#define PA25 (1U<<25)
+	#define PA26 (1U<<26)
+	#define PA27 (1U<<27)
+	#define PA28 (1U<<28)
+	#define PA29 (1U<<29)
+	#define PA30 (1U<<30)
+	#define PA31 (1U<<31)
+
+	#define PB00 (1U<<0)
+	#define PB01 (1U<<1)
+	#define PB02 (1U<<2)
+	#define PB03 (1U<<3)
+	#define PB04 (1U<<4)
+	#define PB05 (1U<<5)
+	#define PB06 (1U<<6)
+	#define PB07 (1U<<7)
+	#define PB08 (1U<<8)
+	#define PB09 (1U<<9)
+	#define PB10 (1U<<10)
+	#define PB11 (1U<<11)
+	#define PB12 (1U<<12)
+	#define PB13 (1U<<13)
+	#define PB14 (1U<<14)
+	#define PB15 (1U<<15)
+	#define PB16 (1U<<16)
+	#define PB17 (1U<<17)
+	#define PB18 (1U<<18)
+	#define PB19 (1U<<19)
+	#define PB20 (1U<<20)
+	#define PB21 (1U<<21)
+	#define PB22 (1U<<22)
+	#define PB23 (1U<<23)
+	#define PB24 (1U<<24)
+	#define PB25 (1U<<25)
+	#define PB26 (1U<<26)
+	#define PB27 (1U<<27)
+	#define PB28 (1U<<28)
+	#define PB29 (1U<<29)
+	#define PB30 (1U<<30)
+	#define PB31 (1U<<31)
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -930,6 +1010,31 @@ namespace T_HW
 	#define TCC_MCEO2        		(1<<26)   	/**< \brief (TCC_EVCTRL) Match or Capture Channel 2 Event Output Enable */
 	#define TCC_MCEO3        		(1<<27)   	/**< \brief (TCC_EVCTRL) Match or Capture Channel 3 Event Output Enable */
 
+	#define	TCC_WAVEGEN_NFRQ        (0x0)   /**< \brief (TCC_WAVE) Normal frequency */
+	#define	TCC_WAVEGEN_MFRQ        (0x1)   /**< \brief (TCC_WAVE) Match frequency */
+	#define	TCC_WAVEGEN_NPWM        (0x2)   /**< \brief (TCC_WAVE) Normal PWM */
+	#define	TCC_WAVEGEN_DSCRITICAL  (0x4)   /**< \brief (TCC_WAVE) Dual-slope critical */
+	#define	TCC_WAVEGEN_DSBOTTOM    (0x5)   /**< \brief (TCC_WAVE) Dual-slope with interrupt/event condition when COUNT reaches ZERO */
+	#define	TCC_WAVEGEN_DSBOTH      (0x6)   /**< \brief (TCC_WAVE) Dual-slope with interrupt/event condition when COUNT reaches ZERO or TOP */
+	#define	TCC_WAVEGEN_DSTOP       (0x7)   /**< \brief (TCC_WAVE) Dual-slope with interrupt/event condition when COUNT reaches TOP */
+	#define	TCC_RAMP_1          	(0x0<<4)   /**< \brief (TCC_WAVE) RAMP1 operation */
+	#define	TCC_RAMP_2A         	(0x1<<4)   /**< \brief (TCC_WAVE) Alternative RAMP2 operation */
+	#define	TCC_RAMP_2          	(0x2<<4)   /**< \brief (TCC_WAVE) RAMP2 operation */
+	#define	TCC_RAMP_2C         	(0x3<<4)   /**< \brief (TCC_WAVE) Critical RAMP2 operation */
+	#define TCC_CIPEREN         	(1<<7)            /**< \brief (TCC_WAVE) Circular period Enable */
+	#define TCC_CICCEN0         	(1<<8)            /**< \brief (TCC_WAVE) Circular Channel 0 Enable */
+	#define TCC_CICCEN1         	(1<<9)            /**< \brief (TCC_WAVE) Circular Channel 1 Enable */
+	#define TCC_CICCEN2         	(1<<10)           /**< \brief (TCC_WAVE) Circular Channel 2 Enable */
+	#define TCC_CICCEN3         	(1<<11)           /**< \brief (TCC_WAVE) Circular Channel 3 Enable */
+	#define TCC_POL0            	(1<<16)           /**< \brief (TCC_WAVE) Channel 0 Polarity */
+	#define TCC_POL1            	(1<<17)           /**< \brief (TCC_WAVE) Channel 1 Polarity */
+	#define TCC_POL2            	(1<<18)           /**< \brief (TCC_WAVE) Channel 2 Polarity */
+	#define TCC_POL3         		(1<<19)           /**< \brief (TCC_WAVE) Channel 3 Polarity */
+	#define TCC_SWAP0        		(1<<24)           /**< \brief (TCC_WAVE) Swap DTI Output Pair 0 */
+	#define TCC_SWAP1           	(1<<25)           /**< \brief (TCC_WAVE) Swap DTI Output Pair 1 */
+	#define TCC_SWAP2           	(1<<26)           /**< \brief (TCC_WAVE) Swap DTI Output Pair 2 */
+	#define TCC_SWAP3           	(1<<27)           /**< \brief (TCC_WAVE) Swap DTI Output Pair 3 */
+
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 	struct S_EIC
@@ -944,6 +1049,8 @@ namespace T_HW
 		RW32  	INTFLAG;     /**< \brief Offset: 0x10 (R/W 32) Interrupt Flag Status and Clear */
 		RW32  	WAKEUP;      /**< \brief Offset: 0x14 (R/W 32) Wake-Up Enable */
 		RW32  	CONFIG[2];   /**< \brief Offset: 0x18 (R/W 32) Configuration n */
+
+		void SetConfig(byte intn, bool filt, byte sense) { byte n = intn / 8; intn &= 7; CONFIG[n] = (CONFIG[n] & ~(0xF << (intn*4))) | (filt << (intn*4+3)) | (sense << (intn*4)); }
 	};
 
 	#define EIC_SWRST          (1<<0)            /**< \brief (EIC_CTRL) Software Reset */
@@ -1124,17 +1231,40 @@ namespace T_HW
 		RW8       	CTRLBCLR;    		/**< \brief Offset: 0x04 (R/W  8) Control B Clear */
 		RW8       	CTRLBSET;    		/**< \brief Offset: 0x05 (R/W  8) Control B Set */
 		RW8         CTRLC;       		/**< \brief Offset: 0x06 (R/W  8) Control C */
-		RO8         z__Reserved1[0x1];
+		RO8							z__Reserved1[0x1];
 		RW8         DBGCTRL;			/**< \brief Offset: 0x08 (R/W  8) Debug Control */
-		RO8         z__Reserved2[0x1];
+		RO8							z__Reserved2[0x1];
 		RW16		EVCTRL;      		/**< \brief Offset: 0x0A (R/W 16) Event Control */
 		RW8         INTENCLR;    		/**< \brief Offset: 0x0C (R/W  8) Interrupt Enable Clear */
 		RW8         INTENSET;    		/**< \brief Offset: 0x0D (R/W  8) Interrupt Enable Set */
 		RW8         INTFLAG;     		/**< \brief Offset: 0x0E (R/W  8) Interrupt Flag Status and Clear */
 		RO8         STATUS;      		/**< \brief Offset: 0x0F (R/   8) Status */
-		RW16		COUNT;       		/**< \brief Offset: 0x10 (R/W 16) COUNT16 Counter Value */
-		RO8         z__Reserved3[0x6];
-		RW16        CC[2];				/**< \brief Offset: 0x18 (R/W 16) COUNT16 Compare/Capture */
+
+		union
+		{
+			struct
+			{
+				RW8			COUNT8;       /**< \brief Offset: 0x10 (R/W  8) COUNT8 Counter Value */
+				RO8					z__Reserved3[0x3];
+				RW8			PER8;         /**< \brief Offset: 0x14 (R/W  8) COUNT8 Period Value */
+				RO8					z__Reserved4[0x3];
+				RW8         CC8[2];       /**< \brief Offset: 0x18 (R/W  8) COUNT8 Compare/Capture */
+			};
+
+			struct
+			{
+				RW16		COUNT16;       /**< \brief Offset: 0x10 (R/W 16) COUNT16 Counter Value */
+				RO8					z__Reserved5[0x6];
+				RW16        CC16[2];       /**< \brief Offset: 0x18 (R/W 16) COUNT16 Compare/Capture */
+			};
+
+			struct
+			{
+				RW32		COUNT32;       /**< \brief Offset: 0x10 (R/W 32) COUNT32 Counter Value */
+				RO8					z__Reserved6[0x4];
+				RW32		CC32[2];       /**< \brief Offset: 0x18 (R/W 32) COUNT32 Compare/Capture */
+			};
+		};
 	};
 
 	typedef S_TC S_TC3, S_TC4, S_TC5, S_TC6, S_TC7;

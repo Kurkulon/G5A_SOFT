@@ -88,6 +88,12 @@ namespace CM0_TYPES
 		u32 RESERVED3[31];
 		u32 RESERVED4[64];
 		IO8  IP[8];		      // Interrupt Priority Register (8Bit wide) 
+
+		void SET_ER(u32 n) { ISER[n>>5] = 1 << (n&31); }
+		void CLR_ER(u32 n) { ICER[n>>5] = 1 << (n&31); }
+		void SET_PR(u32 n) { ISPR[n>>5] = 1 << (n&31); }
+		void CLR_PR(u32 n) { ICPR[n>>5] = 1 << (n&31); }
+
 	}  NVIC_T;
 
 //brief  Structure type to access the System Control Block (SCB).

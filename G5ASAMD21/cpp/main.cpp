@@ -373,7 +373,8 @@ static void UpdateTemp()
 
 			if (Check_I2C_ready())
 			{
-				temp = ((i16)ReverseWord(rbuf) + 64) / 128;
+				i32 t = (i16)ReverseWord(rbuf);
+				temp = (t * 10 + 64) / 128;
 
 				i = 0;
 			};
@@ -545,7 +546,7 @@ static void UpdateMan()
 			if (tm.Check(US2RT(100)))
 			{
 //				SetTrmBoudRate(3); /*mtb.data = tableCRC;*/ mtb.len = 5; SendMLT3(&mtb);
-				SendManData(&mtb);
+				SendManData_2(&mtb);
 
 				i++;
 			};
