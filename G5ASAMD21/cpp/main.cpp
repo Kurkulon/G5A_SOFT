@@ -545,8 +545,7 @@ static void UpdateMan()
 
 			if (tm.Check(US2RT(100)))
 			{
-//				SetTrmBoudRate(3); /*mtb.data = tableCRC;*/ mtb.len = 5; SendMLT3(&mtb);
-				SendManData_2(&mtb);
+				SendManData_3(&mtb);
 
 				i++;
 			};
@@ -631,6 +630,8 @@ int main()
 {
 	static bool c = true;
 
+	static MTB mtb;
+
 	RTM32 tm;
 //	Dbt db(100);
 
@@ -650,6 +651,13 @@ int main()
 		HW::PIOA->BSET(15);
 
 		UpdateParams();
+
+		//if (tm.Check(MS2RT(100)))
+		//{
+		//	mtb.data = txbuf;
+		//	mtb.len = 1;
+		//	SendManData_2(&mtb);
+		//};
 
 		HW::PIOA->BCLR(15);
 

@@ -23,128 +23,130 @@ u16 gen_freq = 10;
 
 static void SaveGenTime();
 
-#define GEN_MCK		0
-#define GEN_1M		1
-#define GEN_32K		2
-#define GEN_16M		3
-#define GEN_500K	4
+#define GEN_MCK			0
+#define GEN_1M			1
+#define GEN_32K			2
+#define GEN_16M			3
+#define GEN_500K		4
 
-#define	NAND_DMACH		0
-#define	COM1_DMACH		1
-#define	COM2_DMACH		2
-#define	COM3_DMACH		3
-#define	SPI_DMACH_TX	4
-#define	SPI_DMACH_RX	5
-#define	DSP_DMACH		30
-#define	CRC_DMACH		31
+#define	B_DMACH			0
+#define	M_DMACH			1
+//#define	COM2_DMACH		2
+//#define	COM3_DMACH		3
+//#define	SPI_DMACH_TX	4
+//#define	SPI_DMACH_RX	5
+//#define	DSP_DMACH		30
+//#define	CRC_DMACH		31
 
-#define I2C			HW::I2C3
-#define PIO_I2C		HW::PIOA 
-#define PIN_SDA		22 
-#define PIN_SCL		23 
-#define SDA			(1<<PIN_SDA) 
-#define SCL			(1<<PIN_SCL) 
+#define I2C				HW::I2C3
+#define PIO_I2C			HW::PIOA 
+#define PIN_SDA			22 
+#define PIN_SCL			23 
+#define SDA				(1<<PIN_SDA) 
+#define SCL				(1<<PIN_SCL) 
 
-__align(16) T_HW::DMADESC DmaTable[12];
-__align(16) T_HW::DMADESC DmaWRB[12];
+__align(16) T_HW::DMADESC 		DmaTable[12];
+__align(16) T_HW::DMADESC 		DmaWRB[12];
 
-#define SPI				HW::SPI5
-#define PIO_SCLK		HW::PIOB
-#define PIO_DATA		HW::PIOB
-//#define PIO_MISO		HW::PIOA
-#define PIO_SYNC		HW::PIOA
+#define SPI							HW::SPI5
+#define PIO_SCLK					HW::PIOB
+#define PIO_DATA					HW::PIOB
+//#define PIO_MISO					HW::PIOA
+#define PIO_SYNC					HW::PIOA
 
-#define PIN_SCLK		17
-#define PIN_MOSI		16 
-#define PIN_SYNC		20 
+#define PIN_SCLK					17
+#define PIN_MOSI					16 
+#define PIN_SYNC					20 
 
-#define SCLK			(1<<PIN_SCLK) 
-#define MOSI			(1<<PIN_MOSI) 
-#define SYNC			(1<<PIN_SYNC) 
+#define SCLK						(1<<PIN_SCLK) 
+#define MOSI						(1<<PIN_MOSI) 
+#define SYNC						(1<<PIN_SYNC) 
 
-#define SPI_IRQ			SERCOM5_IRQ
+#define SPI_IRQ						SERCOM5_IRQ
 
-#define EVENT_MANR_1	0
-#define EVENT_MANR_2	1
-#define EVENT_DNNKB		2
-#define EVENT_DNNKM		3
-
-
-
-#define ManTT			HW::TCC0
-#define ManRT			HW::TCC1
-#define GenTCC			HW::TCC2
-
-#define WinTC			HW::TC3
-#define bTC				HW::TC4
-#define mTC				HW::TC5
-#define ManIT			HW::TC6
-//#define 				HW::TC7
-
-#define WIN_IRQ			TC3_IRQ
-#define GEN_IRQ			TCC2_IRQ
+#define EVENT_MANR_1				0
+#define EVENT_MANR_2				1
+#define EVENT_DNNKB					2
+#define EVENT_DNNKM					3
+#define EVENT_WIN					4
 
 
-#define MT(v)			(v)
-#define BAUD2CLK(x)		((u32)(1000000/x+0.5))
-#define US2MT(v)		(v)//((v)*(u64)MCK/2/1000000)
 
-#define MANT_IRQ		TCC0_IRQ
-#define MANT_IRQ_2		TCC0_IRQ
+#define ManTT						HW::TCC0
+#define ManRT						HW::TCC1
+#define GenTCC						HW::TCC2
 
-#define MANR_IRQ		TCC1_IRQ
-//#define MANR_EXTINT		11
+#define WinTC						HW::TC3
+#define bTC							HW::TC4
+#define mTC							HW::TC5
+#define ManIT						HW::TC6
+//#define 							HW::TC7
 
-#define MANR_EXTINT		0
-#define MANIT_EVSYS_CHANNEL	(EVENT_MANR_1 | EVSYS_GEN_EIC_EXTINT_0 | EVSYS_PATH_ASYNCHRONOUS)
-#define MANIT_EVSYS_USER	(EVSYS_USER_TC6_EVU | EVSYS_USER_CHANNEL(EVENT_MANR_1))
+#define MAN_DIV						16
+#define MAN_PRESC					TC_PRESCALER_DIV16
+#define MT(v)						((v)*MCK_MHz/MAN_DIV)
+#define BAUD2CLK(x)					(((MCK+MAN_DIV/2)/MAN_DIV+x/2)/x)
+#define US2MT(v)					((v)*MCK_MHz/MAN_DIV)
 
-#define MANR_EVSYS_CHANNEL	(EVENT_MANR_2 | EVSYS_GEN_TC6_OVF | EVSYS_PATH_ASYNCHRONOUS | EVSYS_EDGSEL_RISING_EDGE)
-#define MANR_EVSYS_USER1	(EVSYS_USER_TCC1_EV_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
-#define MANR_EVSYS_USER2	(EVSYS_USER_TCC1_MC_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
+#define MANT_IRQ					TCC0_IRQ
+#define MANT_IRQ_2					TCC0_IRQ
 
+#define MANR_IRQ					TCC1_IRQ
+	
+#define MANR_EXTINT					0
+#define MANIT_EVSYS_CHANNEL			(EVENT_MANR_1 | EVSYS_GEN_EIC_EXTINT_0 | EVSYS_PATH_SYNCHRONOUS | EVSYS_EDGSEL_BOTH_EDGES)
+#define MANIT_EVSYS_USER			(EVSYS_USER_TC6_EVU | EVSYS_USER_CHANNEL(EVENT_MANR_1))
 
-#define BOUD2CLK(x)		((u32)(1000000/x+0.5))
-#define ManRxd()		(HW::PIOA->IN & 1)
+#define MANR_EVSYS_CHANNEL			(EVENT_MANR_2 | EVSYS_GEN_TC6_OVF | EVSYS_PATH_ASYNCHRONOUS | EVSYS_EDGSEL_RISING_EDGE)
+#define MANR_EVSYS_USER1			(EVSYS_USER_TCC1_EV_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
+#define MANR_EVSYS_USER2			(EVSYS_USER_TCC1_MC_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
 
+#define ManT_SET_PR(v)				{ ManTT->PER = (v); }
+#define ManT_SET_CR(v)				{ ManTT->CC[0] = (v); ManTT->CC[0] = (v); }
 
-#define PIO_MANCH		HW::PIOA
-#define PIN_M1			8 
-#define PIN_M2			9 
-#define PIN_TLS			0
-#define M1				(1<<PIN_M1)
-#define M2				(1<<PIN_M2)
-#define TLS				(1<<PIN_TLS)
+#define PIO_MANCH					HW::PIOA
+#define PIN_M1						8 
+#define PIN_M2						9 
+#define PIN_TLS						0
+#define M1							(1<<PIN_M1)
+#define M2							(1<<PIN_M2)
+#define TLS							(1<<PIN_TLS)
 
-#define Pin_ManRcvIRQ_Set()	HW::PIOA->BSET(1)
-#define Pin_ManRcvIRQ_Clr()	HW::PIOA->BCLR(1)
+#define Pin_ManRcvIRQ_Set()			HW::PIOA->BSET(1)
+#define Pin_ManRcvIRQ_Clr()			HW::PIOA->BCLR(1)
 
-#define Pin_ManTrmIRQ_Set()	HW::PIOB->BSET(2)		
-#define Pin_ManTrmIRQ_Clr()	HW::PIOB->BCLR(2)		
+#define Pin_ManTrmIRQ_Set()			HW::PIOB->BSET(10)		
+#define Pin_ManTrmIRQ_Clr()			HW::PIOB->BCLR(11)		
 
-#define Pin_ManRcvSync_Set()	HW::PIOB->BSET(3)		
-#define Pin_ManRcvSync_Clr()	HW::PIOB->BCLR(3)		
+#define Pin_ManRcvSync_Set()		HW::PIOB->BSET(3)		
+#define Pin_ManRcvSync_Clr()		HW::PIOB->BCLR(3)		
 
-#define PIO_D_FIRE		HW::PIOA
-#define PIO_DNNK		HW::PIOA
-#define PIN_D_FIRE		16
-#define PIN_DNNKB		24
-#define PIN_DNNKM		25
-#define D_FIRE			(1<<PIN_D_FIRE)
-#define DNNKB			(1<<PIN_DNNKB)
-#define DNNKM			(1<<PIN_DNNKM)
+#define PIO_D_FIRE					HW::PIOA
+#define PIO_DNNK					HW::PIOA
+#define PIN_D_FIRE					16
+#define PIN_DNNKB					24
+#define PIN_DNNKM					25
+#define D_FIRE						(1<<PIN_D_FIRE)
+#define DNNKB						(1<<PIN_DNNKB)
+#define DNNKM						(1<<PIN_DNNKM)
 
-#define DNNKB_EXTINT	12
-#define DNNKM_EXTINT	13
+#define WIN_IRQ						TC3_IRQ
+#define GEN_IRQ						TCC2_IRQ
+
+#define DNNKB_EXTINT				12
+#define DNNKM_EXTINT				13
 
 #define DNNKB_EVSYS_GEN_EIC_EXTINT	EVSYS_GEN_EIC_EXTINT_12
 #define DNNKM_EVSYS_GEN_EIC_EXTINT	EVSYS_GEN_EIC_EXTINT_13
 
-#define DNNKB_EVSYS_USER	(EVSYS_USER_CHANNEL(EVENT_DNNKB)|EVSYS_USER_TC4_EVU)
-#define DNNKB_EVSYS_CHANNEL	(EVENT_DNNKB|DNNKB_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES)
+#define DNNKB_EVSYS_CHANNEL			(EVENT_DNNKB|DNNKB_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
+#define DNNKB_EVSYS_USER			(EVSYS_USER_CHANNEL(EVENT_DNNKB)|EVSYS_USER_TC4_EVU)
 
-#define DNNKM_EVSYS_USER	(EVSYS_USER_CHANNEL(EVENT_DNNKM)|EVSYS_USER_TC5_EVU)
-#define DNNKM_EVSYS_CHANNEL	(EVENT_DNNKM|DNNKM_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_SYNCHRONOUS|EVSYS_EDGSEL_BOTH_EDGES)
+#define DNNKM_EVSYS_CHANNEL			(EVENT_DNNKM|DNNKM_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
+#define DNNKM_EVSYS_USER			(EVSYS_USER_CHANNEL(EVENT_DNNKM)|EVSYS_USER_TC5_EVU)
+
+#define WIN_EVSYS_CHANNEL			(EVENT_WIN|EVSYS_GEN_TC3_OVF|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
+#define WIN_EVSYS_USER				(EVSYS_USER_CHANNEL(EVENT_WIN)|EVSYS_USER_TC5_EVU)
 
 static void InitVectorTable();
 
@@ -159,34 +161,27 @@ extern "C" void SystemInit()
 	using namespace CM0;
 	using namespace HW;
 
-	HW::PIOA->DIRSET = (1<<15)|(1<<13)|(1<<1)|(1<<2)|(1<<3)|D_FIRE|M1|M2;
-	HW::PIOA->CLR((1<<15)|(1<<13)|(1<<1)|(1<<2)|(1<<3)|D_FIRE|M1|M2);
+	HW::PIOA->CLR(PA15|PA13|PA01|PA02|PA03|D_FIRE|M1|M2);
+	HW::PIOA->DIRSET = PA15|PA13|PA01|PA02|PA03|D_FIRE|M1|M2;
 
 	HW::NVMCTRL->CTRLB = NVMCTRL_MANW|NVMCTRL_RWS_HALF;
 
-	//SYSCTRL->OSC8M &= ~OSC8M_PRESC_8;
-
 	SYSCTRL->XOSC = XOSC_ENABLE|XOSC_ONDEMAND; // RUNSTDBY|ENABLE
-
-	//while (!SYSCTRL->PCLKSR.XOSCRDY);
 
 	SYSCTRL->DPLLCTRLA = 0; while ((SYSCTRL->DPLLSTATUS & DPLLSTATUS_ENABLE) != 0);
 
-	SYSCTRL->DPLLCTRLB = DPLL_REFCLK_XOSC|DPLL_DIV(7);	// 0x70010; // XOSC clock source division factor 16 = 2*(DIV+1), XOSC clock reference
-	SYSCTRL->DPLLRATIO = DPLL_LDR((MCK+500000)/1000000-1)|DPLL_LDRFRAC(0);	// 47; // Loop Divider Ratio = 48, Loop Divider Ratio Fractional Part = 0
+	SYSCTRL->DPLLCTRLB = DPLL_REFCLK_XOSC|DPLL_DIV(7);						// XOSC clock source division factor 16 = 2*(DIV+1), XOSC clock reference
+	SYSCTRL->DPLLRATIO = DPLL_LDR((MCK+500000)/1000000-1)|DPLL_LDRFRAC(0);	// Loop Divider Ratio = 48, Loop Divider Ratio Fractional Part = 0
 
 	SYSCTRL->DPLLCTRLA = DPLL_ONDEMAND|DPLL_ENABLE; 
 
-	//while ((SYSCTRL->DPLLSTATUS & 7) != 7);
-
-	HW::GCLK->GenDivCtrl(GEN_MCK,	0,	GCLK_SRC_FDPLL	|	GCLK_GENEN	| GCLK_OE);
-	HW::GCLK->GenDivCtrl(GEN_1M,	16,	GCLK_SRC_XOSC	|	GCLK_GENEN	| GCLK_OE);
-	HW::GCLK->GenDivCtrl(GEN_16M,	1,	GCLK_SRC_XOSC	|	GCLK_GENEN	| GCLK_OE);
-	HW::GCLK->GenDivCtrl(GEN_500K,	32,	GCLK_SRC_XOSC	|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_MCK,	0,	GCLK_SRC_FDPLL		|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_1M,	16,	GCLK_SRC_XOSC		|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_32K,	0,	GCLK_SRC_OSCULP32K	|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_16M,	1,	GCLK_SRC_XOSC		|	GCLK_GENEN	| GCLK_OE);
+	HW::GCLK->GenDivCtrl(GEN_500K,	10,	GCLK_SRC_XOSC		|	GCLK_GENEN	| GCLK_OE);
 
 	HW::PIOB->SetWRCONFIG(PB22|PB23, PORT_PMUX_H | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
-
-	//HW::PIOB->PMUX[22/2] = 0x77;
 	HW::PIOB->PINCFG[22] = PINGFG_DRVSTR|PINGFG_PMUXEN;
 	HW::PIOB->PINCFG[23] = PINGFG_DRVSTR|PINGFG_PMUXEN;
 
@@ -194,8 +189,6 @@ extern "C" void SystemInit()
 	HW::DMAC->BASEADDR	= DmaTable;
 	HW::DMAC->WRBADDR	= DmaWRB;
 	HW::DMAC->CTRL = DMAC_DMAENABLE|DMAC_LVLEN0|DMAC_LVLEN1|DMAC_LVLEN2|DMAC_LVLEN3;
-
-//	InitVectorTable();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -306,6 +299,30 @@ void ResetGenWorkTime()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+void EnableGen()
+{
+	PIO_D_FIRE->PINCFG[PIN_D_FIRE] = PINGFG_PMUXEN;
+
+	genTimeOut = 60000;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+void DisableGen()
+{
+	PIO_D_FIRE->PINCFG[PIN_D_FIRE] = 0;
+	genTimeOut = 0;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline bool CheckGenEnabled()
+{
+	return PIO_D_FIRE->PINCFG[PIN_D_FIRE] & PINGFG_PMUXEN;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static void UpdateGenTime()
 {
 	static u32 pt = 0;
@@ -315,7 +332,7 @@ static void UpdateGenTime()
 
 	pt = t;
 
-	if (dt != 0/* && (TCC0.CTRLB & 0x10)*/)
+	if (dt != 0 && CheckGenEnabled())
 	{
 		genWorkTimeMilliseconds += dt;
 
@@ -341,26 +358,6 @@ static void UpdateGenTime()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
-void EnableGen()
-{
-	PIO_D_FIRE->PINCFG[PIN_D_FIRE] = PINGFG_PMUXEN;
-
-	genTimeOut = 60000;
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-void DisableGen()
-{
-	PIO_D_FIRE->PINCFG[PIN_D_FIRE] = 0;
-	genTimeOut = 0;
-
-//	TCC0.CTRLB = TC_WGMODE_SS_gc;
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 static __irq void GenIRQ()
 {
 	using namespace HW;
@@ -380,7 +377,7 @@ static __irq void GenIRQ()
 	bTC->CTRLBSET = TC_CMD_RETRIGGER;
 	mTC->CTRLBSET = TC_CMD_RETRIGGER;
 
-	if (PIO_D_FIRE->PINCFG[PIN_D_FIRE] & PINGFG_PMUXEN) { fireCount += 1; };
+	if (CheckGenEnabled()) { fireCount += 1; };
 
 	PIOA->BCLR(17);
 }
@@ -414,14 +411,41 @@ static __irq void WinIRQ()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static __irq void WinIRQ2()
+{
+	using namespace HW;
+
+	PIOA->BSET(18);
+
+	WinTC->INTFLAG = ~0;
+
+	b_ts[cur_ts_index] += bTC->COUNT16;
+	m_ts[cur_ts_index] += mTC->COUNT16;
+
+	bTC->CTRLBSET = TC_CMD_RETRIGGER;
+	mTC->CTRLBSET = TC_CMD_RETRIGGER;
+
+	cur_ts_index += 1;
+
+	if (cur_ts_index >= 64/*max_ts_index*/)
+	{
+		WinTC->CTRLA &= ~TC_ENABLE;
+//		WinTC->CTRLBSET = TC_CMD_STOP;
+	};
+
+	PIOA->BCLR(18);
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 void InitGen()
 {
 	using namespace HW;
 
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC2_TC3	|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_TC4_TC5		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_1		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKB
-	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_2		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKM
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC2_TC3				|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TC4_TC5					|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = (GCLK_ID_EVSYS_0 + EVENT_DNNKB)	|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKB
+	HW::GCLK->CLKCTRL = (GCLK_ID_EVSYS_0 + EVENT_DNNKB)	|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKM
 
 	PM->APBCMASK |= PM_APBC_TCC2|PM_APBC_TC3|PM_APBC_TC4|PM_APBC_TC5;
 	PM->APBCMASK |= PM_APBC_EVSYS;
@@ -433,8 +457,8 @@ void InitGen()
 	PIO_DNNK->SetWRCONFIG(DNNKB|DNNKM,	PORT_PMUX(0) | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
 
 	EIC->EVCTRL |= (EIC_EXTINT0 << DNNKB_EXTINT) | (EIC_EXTINT0 << DNNKM_EXTINT);
-	EIC->SetConfig(DNNKB_EXTINT, 0, EIC_SENSE_HIGH);
-	EIC->SetConfig(DNNKM_EXTINT, 0, EIC_SENSE_HIGH);
+	EIC->SetConfig(DNNKB_EXTINT, 0, EIC_SENSE_BOTH);
+	EIC->SetConfig(DNNKM_EXTINT, 0, EIC_SENSE_BOTH);
 	EIC->INTENCLR = (EIC_EXTINT0 << DNNKB_EXTINT) | (EIC_EXTINT0 << DNNKM_EXTINT);
 	EIC->CTRL = EIC_ENABLE;
 
@@ -469,10 +493,6 @@ void InitGen()
 
 	WinTC->CC16[0] = windowTime - 1; // временнќе окно
 	WinTC->CTRLA = TC_WAVEGEN_MFRQ;
-	//WinTC->CTRLA = TC_ENABLE|TC_WAVEGEN_MFRQ;
-	//while(WinTC->STATUS & TC_SYNCBUSY);
-	//WinTC->CTRLBSET = TC_CMD_STOP;
-
 
 	VectorTableExt[WIN_IRQ] = WinIRQ;
 	CM0::NVIC->ICPR[0] = 1 << WIN_IRQ;
@@ -500,14 +520,6 @@ void InitGen()
 
 	GenTCC->CTRLA = TCC_PRESCALER_DIV16;
 	GenTCC->CTRLA = TCC_PRESCALER_DIV16|TCC_ENABLE;
-
-	//TCC0.CTRLB = TC_WGMODE_SS_gc|0x10;
-	//TCC0.CTRLE = 0; 		
-	//TCC0.PER = gen_period;
-	//TCC0.CCA = (15 * CPU_FREQ + 32 * 1000000) / (1000000 * 64);
-	//TCC0.INTCTRLA = 0;
-	//TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;
-	//TCC0.CTRLA = TC_CLKSEL_DIV64_gc;
 
 	genTimeOut = 60000;
 }
@@ -542,10 +554,16 @@ inline void ManZero()		{ HW::PIOA->CLR(M2); HW::PIOA->SET(M1); }
 //static byte manInv = 0;
 
 
-static const u16 manboud[4] = { BOUD2CLK(20833), BOUD2CLK(41666), BOUD2CLK(62500), BOUD2CLK(83333) };//0:20833Hz, 1:41666Hz,2:62500Hz,3:83333Hz
+static const u16 manbaud[4] = { BAUD2CLK(20833), BAUD2CLK(41666), BAUD2CLK(62500), BAUD2CLK(83333) };//0:20833Hz, 1:41666Hz,2:62500Hz,3:83333Hz
 
 
-u16 trmHalfPeriod = BOUD2CLK(20833)/2;
+static u16 trmHalfPeriod = (manbaud[0]+1)/2;
+static u16 trmHalfPeriod2 = manbaud[0];
+static u16 trmHalfPeriod3 = (manbaud[0]*3+1)/2;
+static u16 trmHalfPeriod4 = manbaud[0] * 2;
+static u16 trmHalfPeriod6 = manbaud[0] * 3;
+static u16 trmHalfPeriod7 = (manbaud[0] * 7 + 1) / 2;
+
 byte stateManTrans = 0;
 static MTB *manTB = 0;
 static bool trmBusy = false;
@@ -554,7 +572,7 @@ static bool trmBusy = false;
 
 void SetTrmBoudRate(byte i)
 {
-	trmHalfPeriod = manboud[i&3]/2;
+	trmHalfPeriod = manbaud[i&3]/2;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -563,7 +581,7 @@ void SetTrmBoudRate(byte i)
 static bool rcvBusy = false;
 byte stateManRcvr = 0;
 
-const u16 rcvPeriod = BOUD2CLK(20833);
+const u16 rcvPeriod = BAUD2CLK(20833);
 //const u16 rcvHalfPeriod = rcvPeriod/2;
 //const u16 rcvHalfPeriodMin = rcvHalfPeriod*0.75;
 //const u16 rcvHalfPeriodMax = rcvHalfPeriod*1.25;
@@ -1041,6 +1059,8 @@ static __irq void ManTrmIRQ_2()
 	static u16 len = 0;
 
 	HW::PIOA->BSET(10);
+	
+	while(ManTT->SYNCBUSY);
 
 	switch (stateMT)
 	{
@@ -1191,8 +1211,17 @@ static __irq void ManTrmIRQ_2()
 //			ManDisable();
 			stateMT = 0;
 
-			ManTT->CTRLA = 0;
-			ManTT->INTENCLR = ~0;
+			PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+
+//			ManTT->CTRLBSET = TCC_CMD_STOP;
+			
+			//while(ManTT->SYNCBUSY);
+
+			//__dsb(15);
+
+			ManTT->CTRLA &= ~TCC_ENABLE;
+
+			//__dsb(15);
 
 			manTB2->ready = true;
 			trmBusy2 = false;
@@ -1226,7 +1255,7 @@ bool SendManData_2(MTB *mtb)
 
 	stateMT = 0;
 
-	ManTT->CTRLA = TCC_PRESCALER_DIV1;
+	ManTT->CTRLA = MAN_PRESC;
 	ManTT->WAVE = TCC_WAVEGEN_NFRQ;//|TCC_POL0;
 	ManTT->DRVCTRL = 0;//TCC_INVEN1;
 	ManTT->PER = 0xFFFFFF;
@@ -1239,12 +1268,12 @@ bool SendManData_2(MTB *mtb)
 	ManTT->INTENSET = TCC_MC0;
 	ManTT->INTFLAG = TCC_MC0;
 
-	//ManTT->CTRLBCLR = TCC_LUPD;
-
-	//while(ManTT->SYNCBUSY);
-
-	ManTT->CTRLA = TCC_ENABLE|TCC_PRESCALER_DIV1;
+	ManTT->CTRLA = MAN_PRESC|TCC_ENABLE;
 	ManTT->CTRLBSET = TCC_CMD_RETRIGGER;
+
+	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_PMUX_E|PORT_WRPMUX|PORT_WRPINCFG|PORT_PMUXEN);
+	PIO_MANCH->CLR(M1|M2);
+	PIO_MANCH->DIRSET = M1|M2;
 
 	return trmBusy2 = true;
 }
@@ -1255,12 +1284,17 @@ static void InitManTransmit_2()
 {
 	using namespace HW;
 
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_1M) | GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_MCK) | GCLK_CLKEN;
+
+	while (HW::GCLK->STATUS);
 
 	PM->APBCMASK |= PM_APBC_TCC0;
 
-	PIO_MANCH->DIRCLR = M1|M2;
-	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_PMUX_E|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX|PORT_PULLEN);
+	PIO_MANCH->CLR(M1|M2);
+	PIO_MANCH->DIRSET = M1|M2;
+	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+
+	PIOA->DIRSET = PA10|PA11;
 
 	ManTT->CTRLA = TCC_SWRST;
 
@@ -1271,6 +1305,281 @@ static void InitManTransmit_2()
 	VectorTableExt[MANT_IRQ_2] = ManTrmIRQ_2;
 	CM0::NVIC->CLR_PR(MANT_IRQ_2);
 	CM0::NVIC->SET_ER(MANT_IRQ_2);
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static __irq void ManTrmIRQ_3()
+{
+	static u32 tw = 0;
+	static u16 count = 0;
+	static byte i = 0;
+	static const u16* data = 0;
+	static u16 len = 0;
+	static bool cmd = false;
+
+	Pin_ManTrmIRQ_Set();
+
+	switch (stateManTrans)
+	{
+		case 0:	// 1-st sync imp 
+
+			data = manTB->data;
+			len = manTB->len;
+			cmd = false;
+			stateManTrans++;
+
+		case 1:
+
+			if (len != 0)
+			{
+				tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
+
+				data++;
+				len--;
+
+				count = 17;
+
+				u32 tadd = (cmd) ? trmHalfPeriod : 0;
+
+				ManT_SET_CR(trmHalfPeriod3+tadd);
+
+				if (tw & 0x10000)
+				{
+					ManT_SET_PR(trmHalfPeriod7+tadd); //US2MT(96);
+					stateManTrans += 2;
+				}
+				else
+				{
+					ManT_SET_PR(trmHalfPeriod6+tadd); //US2MT(72);
+					stateManTrans++;
+				};
+
+				//ManT_CCU8->GCSS = ManT_CCU8_GCSS;
+
+				tw <<= 1;
+				count--;
+			}
+			else
+			{
+				stateManTrans = 4;
+			};
+
+			break;
+
+		case 2:	
+
+			ManT_SET_CR(trmHalfPeriod);
+
+			if (count == 0)
+			{
+				ManT_SET_PR(trmHalfPeriod2);
+				cmd = false;
+				stateManTrans = 1;
+			}
+			else
+			{
+				if (tw & 0x10000)
+				{
+					ManT_SET_PR(trmHalfPeriod3);
+
+					if (count == 1)
+					{
+						cmd = true;
+						stateManTrans = 1;
+					}
+					else
+					{
+						stateManTrans++;
+					};
+				}
+				else
+				{
+					ManT_SET_PR(trmHalfPeriod2);
+				};
+
+				tw <<= 1;
+				count--;
+			};
+
+			//ManT_CCU8->GCSS = ManT_CCU8_GCSS;
+
+			break;
+
+		case 3: 
+
+			if (tw & 0x10000)
+			{
+				ManT_SET_CR(trmHalfPeriod);
+				ManT_SET_PR(trmHalfPeriod2);
+
+				tw <<= 1;
+				count--;
+
+				if (count == 0)
+				{
+					cmd = true;
+					stateManTrans = 1;
+				};
+			}
+			else
+			{
+				tw <<= 1;
+				count--;
+
+				ManT_SET_CR(trmHalfPeriod2);
+
+				if (tw & 0x10000)
+				{
+					ManT_SET_PR(trmHalfPeriod4);
+					
+					if (count == 1)
+					{
+						cmd = true;
+						stateManTrans = 1;
+					};
+				}
+				else
+				{
+					ManT_SET_PR(trmHalfPeriod3);
+
+					if (count == 0)
+					{
+						cmd = false;
+						stateManTrans = 1;
+					}
+					else
+					{
+						stateManTrans--;
+					}
+				};
+
+//				if (count != 0)
+				{
+					tw <<= 1;
+					count--;
+				};
+			};
+
+			//ManT_CCU8->GCSS = ManT_CCU8_GCSS;
+
+			break;
+
+		case 4:
+
+			stateManTrans++;
+			break;
+
+		case 5:
+
+			stateManTrans = 0;
+
+			PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+
+			ManTT->CTRLA &= ~TCC_ENABLE;
+
+			manTB->ready = true;
+			trmBusy = false;
+
+			break;
+
+
+	}; // 	switch (stateManTrans)
+
+	ManTT->INTFLAG = TCC_MC0;
+
+	Pin_ManTrmIRQ_Clr();
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool SendManData_3(MTB* mtb)
+{
+	if (trmBusy || rcvBusy || mtb == 0 || mtb->data == 0 || mtb->len == 0)
+	{
+		return false;
+	};
+
+	mtb->ready = false;
+
+	manTB = mtb;
+
+	stateMT = 0;
+
+	//trmHalfPeriod = GetTrmBaudRate(mtb->baud);
+	trmHalfPeriod2 = trmHalfPeriod * 2 - 1;
+	trmHalfPeriod3 = trmHalfPeriod * 3 - 1;
+	trmHalfPeriod4 = trmHalfPeriod * 4 - 1;
+	trmHalfPeriod6 = trmHalfPeriod * 6 - 1;
+	trmHalfPeriod7 = trmHalfPeriod * 7 - 1;
+
+	stateManTrans = 0;
+
+	ManTT->CTRLA = MAN_PRESC;
+	ManTT->WAVE = TCC_WAVEGEN_NFRQ;//|TCC_POL0;
+	ManTT->DRVCTRL = 0;//TCC_INVEN1;
+
+	ManTT->PER = US2MT(50)-1;
+	ManTT->CC[0] = ~0; 
+	ManTT->CC[1] = 0; 
+
+	ManTT->EVCTRL = 0;
+
+	ManTT->INTENCLR = ~0;
+	ManTT->INTENSET = TCC_OVF;
+	ManTT->INTFLAG = TCC_OVF;
+
+	ManTT->CTRLA = MAN_PRESC|TCC_ENABLE;
+	ManTT->CTRLBSET = TCC_CMD_RETRIGGER;
+
+	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_PMUX_E|PORT_WRPMUX|PORT_WRPINCFG|PORT_PMUXEN);
+	PIO_MANCH->CLR(M1|M2);
+	PIO_MANCH->DIRSET = M1|M2;
+
+	return trmBusy = true;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void InitManTransmit_3()
+{
+	using namespace HW;
+
+	VectorTableExt[MANT_IRQ_2] = ManTrmIRQ_3;
+	CM0::NVIC->CLR_PR(MANT_IRQ_2);
+	CM0::NVIC->SET_ER(MANT_IRQ_2);
+
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_MCK) | GCLK_CLKEN;
+
+	while (HW::GCLK->STATUS);
+
+	PM->APBCMASK |= PM_APBC_TCC0;
+
+	PIO_MANCH->CLR(M1|M2);
+	PIO_MANCH->DIRSET = M1|M2;
+	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+
+	PIOA->DIRSET = PA10|PA11;
+
+	ManTT->CTRLA = TCC_SWRST;
+
+	while(ManTT->SYNCBUSY);
+
+	//HW::CCU_Enable(ManT_CCU8_PID);
+
+	//ManT_CCU8->GCTRL = 0;
+	//ManT_CCU8->GIDLC = ManT_CCU8_GIDLC;
+	//ManT_CCU8->GCSS = ManT_OUT_GCSS;
+	//ManT_CCU8->GCSC = ManT_OUT_GCSC;
+
+	//PIO_MANCH->ModePin(PIN_L1, A3PP);
+	//PIO_MANCH->ModePin(PIN_H1, A3PP);
+	//PIO_MANCH->ModePin(PIN_L2, A3PP);
+	//PIO_MANCH->ModePin(PIN_H2, A3PP);
+
+	//ManT1->CHC = ManT1_CHC;
+	//ManT2->CHC = ManT2_CHC;
+	//ManT3->CHC = ManT3_CHC;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1414,10 +1723,7 @@ static __irq void ManRcvIRQ2()
 		};
 	};
 
-	#ifdef CPU_SAME53	
-		ManRT->INTFLAG = ~0;
-	#elif defined(CPU_XMC48)
-	#endif
+	ManRT->INTFLAG = ~0;
 
 	Pin_ManRcvIRQ_Clr();
 }
@@ -1449,18 +1755,24 @@ static void InitManRecieve()
 {
 	using namespace HW;
 
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1	| GCLK_GEN(GEN_1M) | GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_TC6_TC7		| GCLK_GEN(GEN_1M) | GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1					| GCLK_GEN(GEN_MCK)	| GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TC6_TC7						| GCLK_GEN(GEN_MCK)	| GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = (GCLK_ID_EVSYS_0 + EVENT_MANR_1)	| GCLK_GEN(GEN_MCK)	| GCLK_CLKEN; // NNKB
+	HW::GCLK->CLKCTRL = (GCLK_ID_EVSYS_0 + EVENT_MANR_2)	| GCLK_GEN(GEN_MCK)	| GCLK_CLKEN; // NNKM
+
+	while (HW::GCLK->STATUS);
 
 	PM->APBCMASK |= PM_APBC_TCC1 | PM_APBC_TC6;
+	PM->APBCMASK |= PM_APBC_EVSYS;
 
 	PIO_MANCH->DIRCLR = TLS;
 	PIO_MANCH->CTRL |= TLS;
 
 	PIO_MANCH->SetWRCONFIG(TLS, PORT_PMUX_A|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX|PORT_INEN);
+	PIOB->SetWRCONFIG(PB02|PB03, PORT_PMUX_E|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX);
 
 	EIC->EVCTRL |= EIC_EXTINT0 << MANR_EXTINT;
-	EIC->SetConfig(MANR_EXTINT, 1, EIC_SENSE_BOTH);
+	EIC->SetConfig(MANR_EXTINT, 0, EIC_SENSE_LOW);
 	EIC->INTENCLR = EIC_EXTINT0 << MANR_EXTINT;
 	EIC->CTRL = EIC_ENABLE;
 
@@ -1472,38 +1784,32 @@ static void InitManRecieve()
 	EVSYS->USER		= MANR_EVSYS_USER2;		//__dsb(15);
 
 	ManRT->CTRLA = TCC_SWRST;
-
 	while(ManRT->SYNCBUSY);
 
 	VectorTableExt[MANR_IRQ] = ManRcvIRQ2;
 	CM0::NVIC->CLR_PR(MANR_IRQ);
 	CM0::NVIC->SET_ER(MANR_IRQ);	
 
-	ManRT->CTRLA = TCC_SWRST;
-	while(ManRT->SYNCBUSY);
-
-	ManRT->CTRLA = TCC_CPTEN0;
+	ManRT->CTRLA = TCC_CPTEN0|MAN_PRESC;
 	ManRT->EVCTRL = TCC_MCEI0|TCC_TCEI0|TCC_EVACT0_RETRIGGER;
 
 	ManRT->PER = ~0;
 	ManRT->CC[1] = 250;
 
 	ManRT->INTENCLR = ~0;
-	//ManRT->INTENSET = TCC_MC0;
 
-	ManRT->CTRLA = TCC_CPTEN0|TCC_ENABLE;
+	ManRT->CTRLA = TCC_CPTEN0|MAN_PRESC|TCC_ENABLE;
 
 	ManIT->CTRLA = TCC_SWRST;
-
 	while(ManIT->STATUS & TC_SYNCBUSY);
 
-	ManIT->CTRLA = TC_WAVEGEN_NPWM|TC_MODE_COUNT8;
+	ManIT->CTRLA = TC_WAVEGEN_NPWM|TC_MODE_COUNT8|MAN_PRESC;
 
 	ManIT->EVCTRL = TC_TCEI|TC_EVACT_RETRIGGER|TC_OVFEO;
 
-	ManIT->PER8 = 11;
-	ManIT->CC8[0] = ~0;
-	ManIT->CC8[1] = ~0;
+	ManIT->PER8 = MT(12)-1;
+	ManIT->CC8[0] = 1;
+	ManIT->CC8[1] = MT(12)-2;
 
 	ManIT->INTENCLR = ~0;
 
@@ -1787,8 +2093,8 @@ static void Init_AD5312()
 {
 	using namespace HW;
 	
-	HW::GCLK->CLKCTRL = GCLK_ID_SERCOM5_CORE|GCLK_GEN(0)|GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_SERCOMX_SLOW|GCLK_GEN(2)|GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_SERCOM5_CORE|GCLK_GEN(GEN_MCK)|GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_SERCOMX_SLOW|GCLK_GEN(GEN_32K)|GCLK_CLKEN;
 
 	PM->APBCMASK |= PM_APBC_SERCOM5;
 
@@ -1796,7 +2102,7 @@ static void Init_AD5312()
 
 	//HW::PIOB->PINCFG[16] = 0x01;
 	//HW::PIOB->PINCFG[17] = 0x01;
-	HW::PIOB->SetWRCONFIG(D_FIRE|(1<<17)|SYNC, PORT_PMUX(2)|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX);
+	HW::PIOB->SetWRCONFIG(D_FIRE|(1<<17)|SYNC, PORT_PMUX_C|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX);
 
 
 	//HW::PIOA->SetPinMux(20, 2);
@@ -1839,8 +2145,8 @@ void InitHardware()
 
 //	InitVectorTable();
 
-	HW::GCLK->CLKCTRL = GCLK_ID_EIC		|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_0	|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN; // Manchester reciever
+	HW::GCLK->CLKCTRL = GCLK_ID_EIC		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN;
+	//HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_0	|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // Manchester reciever
 
 	PM->APBAMASK |= PM_APBA_EIC;
 	PM->APBCMASK |= PM_APBC_EVSYS;
@@ -1852,7 +2158,8 @@ void InitHardware()
 	Init_time();
 	Init_I2C();
 	//InitManTransmit();
-	InitManTransmit_2();
+	//InitManTransmit_2();
+	InitManTransmit_3();
 	InitManRecieve();
 	InitGen();
 	Init_AD5312();

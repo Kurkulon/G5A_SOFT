@@ -137,6 +137,7 @@ extern bool SendManData(MTB *mtb);
 extern void SetTrmBoudRate(byte i);
 extern void ManRcvUpdate();
 extern bool SendManData_2(MTB *mtb);
+extern bool SendManData_3(MTB *mtb);
 //extern void ManRcvStop();
 
 extern bool SendMLT3(MTB *mtb);

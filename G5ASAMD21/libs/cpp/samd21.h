@@ -8,8 +8,8 @@
 #include "types.h"
 #include "cm0.h"
 
-#define MCK 48000000
-
+#define MCK_MHz 48
+#define MCK (MCK_MHz*1000000)
 
 #ifndef WIN32
 #define MK_PTR(n,p)  T_HW::S_##n * const n = ((T_HW::S_##n*)(p))
