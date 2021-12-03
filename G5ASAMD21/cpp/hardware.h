@@ -77,8 +77,6 @@ extern void UpdateHardware();
 extern void EnableGen();
 extern void DisableGen();
 
-//extern u16 GetRTC();
-
 inline u16 GetGenFreq() { extern u16 gen_freq; return gen_freq; }
 inline u16 GetWindowCount() { extern u16 windowCount; return windowCount; }
 inline u16 GetWindowTime() {extern u16 windowTime; return windowTime; }
@@ -132,6 +130,22 @@ struct MTB
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#define WINDOW_SIZE	256
+
+struct WINDSC
+{
+	WINDSC*		next;
+	u16			rw;
+	u16			fireCount;
+	u16			genWorkTime;
+	u16			temp;
+	u16			winCount;
+	u16			m_data[WINDOW_SIZE];
+	u16			b_data[WINDOW_SIZE];
+};
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 extern bool RcvManData(MRB *mrb);
 extern bool SendManData(MTB *mtb);
 extern void SetTrmBoudRate(byte i);
@@ -143,6 +157,11 @@ extern bool SendManData_3(MTB *mtb);
 extern bool SendMLT3(MTB *mtb);
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+extern WINDSC*	AllocWinDsc();
+extern void		FreeWinDsc(WINDSC* d);
+extern WINDSC*	GetReadyWinDsc();
+
 
 extern void InitHardware();
 extern void UpdateHardware();

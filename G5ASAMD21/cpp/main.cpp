@@ -35,6 +35,9 @@ static u16 manReqMask = 0xFF00;
 static u16 numDevice = 0;
 static u16 verDevice = VERSION;
 
+u32 m_ts[WINDOW_SIZE];
+u32 b_ts[WINDOW_SIZE];
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -96,19 +99,15 @@ static bool RequestMan_20(const u16 *data, u16 len, MTB &mtb)
 	txbuf[1] = GetFireCount();								//2. Количество вспышек(ushort)
 	txbuf[2] = GetGenWorkTime();							//3. Наработка генератора(мин)(ushort)
 	txbuf[3] = temp;										//4. Температура в приборе(0.1 гр)(short)
-	byte wc = txbuf[4] = GetWindowCount();					//5. Количество временных окон(шт)
+	u16 wc = txbuf[4] = GetWindowCount();					//5. Количество временных окон(шт)
 	txbuf[5] = GetWindowTime();								//6. Длительность временного окна(мкс)
 
 	u16 n = 6;
 
-	for (byte i = 0; i < wc; i++)
+	for (u16 i = 0; i < wc; i++)
 	{
-		__disable_irq();
-		u32 tm = m_ts[i];
-		u32 tb = b_ts[i];
-		m_ts[i] = 0;
-		b_ts[i] = 0;
-		__enable_irq();
+		u32 tm = m_ts[i]; m_ts[i] = 0;
+		u32 tb = b_ts[i]; b_ts[i] = 0;
 
 		txbuf[n] = (tm < 0xFFFF) ? tm : 0xFFFF;				//7..x. Спектр МЗ(ushort)
 		txbuf[n+wc] = (tb < 0xFFFF) ? tb : 0xFFFF;			//x..y. Спектр БЗ(ushort)
@@ -566,6 +565,38 @@ static void UpdateMan()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static void UpdateWindow()
+{
+	static byte i = 0;
+
+	static WINDSC *d = 0;
+
+	if (d == 0)
+	{
+		d = GetReadyWinDsc();
+		
+		if (d == 0) return;
+	};
+
+	u16 bsum = d->b_data[0];
+	u16 msum = d->m_data[0];
+
+	b_ts[0] += bsum;
+	m_ts[0] += msum;
+
+	u16 t; u32 s;
+
+	for (u32 n = 1; n < d->winCount; n++)
+	{
+		t = d->b_data[n]; b_ts[n] += t - bsum; bsum = t;
+		t = d->m_data[n]; m_ts[n] += t - msum; msum = t;
+	};
+
+	FreeWinDsc(d); d = 0;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static void UpdateParams()
 {
 	static byte i = 0;
@@ -578,51 +609,13 @@ static void UpdateParams()
 		CALL( UpdateTemp()			);
 		CALL( UpdateMan()			);
 		CALL( UpdateHardware()		);
+		CALL( UpdateWindow()		);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;
 
 	#undef CALL
 }
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static void CopyDataDMA(volatile void *src, volatile void *dst, u16 len)
-{
-	using namespace HW;
-
-	register u32 t __asm("r0");
-		
-	DMAC->CHID = 0;
-	DMAC->CHCTRLA = 0;
-	DMAC->CHCTRLA = DMCH_SWRST;
-
-	DmaTable[0].SRCADDR = (byte*)src+len;
-	DmaTable[0].DSTADDR = (byte*)dst+len;
-	DmaTable[0].DESCADDR = 0;//&DmaTable[1];
-	DmaTable[0].BTCNT = len;
-	DmaTable[0].BTCTRL = DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_DSTINC/*|DMDSC_SRCINC*/;
-
-	//DmaTable[1].SRCADDR = src;
-	//DmaTable[1].DSTADDR = dst;
-	//DmaTable[1].DESCADDR = 0;
-	//DmaTable[1].BTCNT = len;
-	//DmaTable[1].BTCTRL = DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_DSTINC|DMDSC_SRCINC|DMDSC_BLOCKACT_INT;
-
-
-	DMAC->CHCTRLB = DMCH_TRIGACT_TRANSACTION|DMCH_TRIGSRC_DISABLE;
-	DMAC->CHCTRLA = DMCH_ENABLE;
-	DMAC->SWTRIGCTRL = 1;
-
-	while(DMAC->CHCTRLA & DMCH_ENABLE);
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-//inline bool CheckDataComplete()
-//{
-//	return (HW::DMAC->CH[0].CHCTRLA & DMCH_ENABLE) == 0;
-//}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -644,7 +637,6 @@ int main()
 	txbuf[0] = 0x5555;
 	txbuf[1] = 0xAAAA;
 
-	CopyDataDMA(txbuf, txbuf+16, 4);
 
 	while (1)
 	{
@@ -655,8 +647,8 @@ int main()
 		//if (tm.Check(MS2RT(100)))
 		//{
 		//	mtb.data = txbuf;
-		//	mtb.len = 1;
-		//	SendManData_2(&mtb);
+		//	mtb.len = 2;
+		//	SendManData_3(&mtb);
 		//};
 
 		HW::PIOA->BCLR(15);

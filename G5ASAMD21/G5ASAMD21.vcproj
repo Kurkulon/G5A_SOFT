@@ -106,6 +106,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\cpp\list.h"
+				>
+			</File>
+			<File
 				RelativePath=".\cpp\options.h"
 				>
 			</File>

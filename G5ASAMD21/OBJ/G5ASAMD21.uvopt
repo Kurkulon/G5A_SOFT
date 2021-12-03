@@ -133,7 +133,7 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>DLGTARM</Key>
-          <Name>(1010=3430,360,3796,847,0)(1007=2025,133,2202,340,0)(1008=-1,-1,-1,-1,0)(1009=2242,228,2476,360,0)</Name>
+          <Name>(1010=2930,328,3296,815,0)(1007=2025,133,2202,340,0)(1008=-1,-1,-1,-1,0)(1009=2242,228,2476,360,0)</Name>
         </SetRegEntry>
         <SetRegEntry>
           <Number>0</Number>
@@ -161,7 +161,56 @@
           <Name>UL2CM3(-O207 -O207 -S9 -C0 -FO7  -FN1 -FC800 -FD20000000 -FF0ATSAMD21_128 -FL020000 -FS00</Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
-      <Breakpoint/>
+      <Breakpoint>
+        <Bp>
+          <Number>0</Number>
+          <Type>0</Type>
+          <LineNumber>453</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>1068</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>d:\Work\G5A_SOFT\G5ASAMD21\cpp\hardware.cpp</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\G5ASAMD21\cpp/hardware.cpp\453</Expression>
+        </Bp>
+        <Bp>
+          <Number>1</Number>
+          <Type>0</Type>
+          <LineNumber>376</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>970</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>d:\Work\G5A_SOFT\G5ASAMD21\cpp\hardware.cpp</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\G5ASAMD21\cpp/hardware.cpp\376</Expression>
+        </Bp>
+        <Bp>
+          <Number>2</Number>
+          <Type>0</Type>
+          <LineNumber>399</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>978</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>d:\Work\G5A_SOFT\G5ASAMD21\cpp\hardware.cpp</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\G5ASAMD21\cpp/hardware.cpp\399</Expression>
+        </Bp>
+      </Breakpoint>
       <WatchWindow1>
         <Ww>
           <count>0</count>
@@ -197,6 +246,26 @@
           <count>6</count>
           <WinNumber>1</WinNumber>
           <ItemText>gen_period,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>7</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>DmaTable[0]</ItemText>
+        </Ww>
+        <Ww>
+          <count>8</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>DmaTable[1]</ItemText>
+        </Ww>
+        <Ww>
+          <count>9</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>DmaWRB[0]</ItemText>
+        </Ww>
+        <Ww>
+          <count>10</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>DmaWRB[1]</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -253,16 +322,12 @@
       <LintConfigFile></LintConfigFile>
       <SystemViewers>
         <Entry>
-          <Name>System Viewer\TCC0</Name>
-          <WinId>35903</WinId>
-        </Entry>
-        <Entry>
-          <Name>System Viewer\TCC1</Name>
-          <WinId>35904</WinId>
-        </Entry>
-        <Entry>
-          <Name>System Viewer\TCC2</Name>
+          <Name>System Viewer\DMAC</Name>
           <WinId>35905</WinId>
+        </Entry>
+        <Entry>
+          <Name>System Viewer\TC3</Name>
+          <WinId>35902</WinId>
         </Entry>
       </SystemViewers>
     </TargetOption>

@@ -4,24 +4,9 @@
 
 #include "hardware.h"
 #include "options.h"
+#include "list.h"
 
-
-u32 m_ts[256];
-u32 b_ts[256];
-
-u16 cur_ts_index = 0;
-u16 max_ts_index = 64;
-u16 windowCount = 64;
-u16 windowTime = 64;
-u16 genWorkTimeMinutes = 0;
-u16 genWorkTimeMilliseconds = 0;
-u16 genTimeOut = 0;
-u16 fireCount = 0;
-
-u16 gen_period = 6249;
-u16 gen_freq = 10;
-
-static void SaveGenTime();
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 #define GEN_MCK			0
 #define GEN_1M			1
@@ -101,8 +86,8 @@ __align(16) T_HW::DMADESC 		DmaWRB[12];
 #define MANR_EVSYS_USER1			(EVSYS_USER_TCC1_EV_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
 #define MANR_EVSYS_USER2			(EVSYS_USER_TCC1_MC_0 | EVSYS_USER_CHANNEL(EVENT_MANR_2))
 
-#define ManT_SET_PR(v)				{ ManTT->PER = (v); }
-#define ManT_SET_CR(v)				{ ManTT->CC[0] = (v); ManTT->CC[0] = (v); }
+#define ManT_SET_PR(v)				{ ManTT->PERB = (v); }
+#define ManT_SET_CR(v)				{ ManTT->CCB[0] = (v); ManTT->CCB[1] = (v); }
 
 #define PIO_MANCH					HW::PIOA
 #define PIN_M1						8 
@@ -115,8 +100,8 @@ __align(16) T_HW::DMADESC 		DmaWRB[12];
 #define Pin_ManRcvIRQ_Set()			HW::PIOA->BSET(1)
 #define Pin_ManRcvIRQ_Clr()			HW::PIOA->BCLR(1)
 
-#define Pin_ManTrmIRQ_Set()			HW::PIOB->BSET(10)		
-#define Pin_ManTrmIRQ_Clr()			HW::PIOB->BCLR(11)		
+#define Pin_ManTrmIRQ_Set()			HW::PIOA->BSET(10)		
+#define Pin_ManTrmIRQ_Clr()			HW::PIOA->BCLR(10)		
 
 #define Pin_ManRcvSync_Set()		HW::PIOB->BSET(3)		
 #define Pin_ManRcvSync_Clr()		HW::PIOB->BCLR(3)		
@@ -130,7 +115,7 @@ __align(16) T_HW::DMADESC 		DmaWRB[12];
 #define DNNKB						(1<<PIN_DNNKB)
 #define DNNKM						(1<<PIN_DNNKM)
 
-#define WIN_IRQ						TC3_IRQ
+#define WIN_IRQ						DMAC_IRQ
 #define GEN_IRQ						TCC2_IRQ
 
 #define DNNKB_EXTINT				12
@@ -145,12 +130,10 @@ __align(16) T_HW::DMADESC 		DmaWRB[12];
 #define DNNKM_EVSYS_CHANNEL			(EVENT_DNNKM|DNNKM_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
 #define DNNKM_EVSYS_USER			(EVSYS_USER_CHANNEL(EVENT_DNNKM)|EVSYS_USER_TC5_EVU)
 
-#define WIN_EVSYS_CHANNEL			(EVENT_WIN|EVSYS_GEN_TC3_OVF|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
-#define WIN_EVSYS_USER				(EVSYS_USER_CHANNEL(EVENT_WIN)|EVSYS_USER_TC5_EVU)
+//#define WIN_EVSYS_CHANNEL			(EVENT_WIN|EVSYS_GEN_TC3_OVF|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
+//#define WIN_EVSYS_USER				(EVSYS_USER_CHANNEL(EVENT_WIN)|EVSYS_USER_TC5_EVU)
 
-static void InitVectorTable();
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 /*----------------------------------------------------------------------------
   Initialize the system
@@ -193,47 +176,59 @@ extern "C" void SystemInit()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+//u32 m_ts[256];
+//u32 b_ts[256];
+
+u16 cur_ts_index = 0;
+u16 max_ts_index = 64;
+u16 windowCount = 64;
+u16 windowTime = 64;
+u16 genWorkTimeMinutes = 0;
+u16 genWorkTimeMilliseconds = 0;
+u16 genTimeOut = 0;
+u16 fireCount = 0;
+
+u16 gen_period = 6249;
+u16 gen_freq = 10;
+
+WINDSC windsc_arr[4];
+
+List<WINDSC>	readyWinList;
+List<WINDSC>	freeWinList;
+
+WINDSC *curWinDsc = 0;
+
+static void SaveGenTime();
+static void PrepareWin();
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-//static __irq void IntDummyHandler()
-//{
-//	__breakpoint(0);
-//}
+static void InitWinLsit()
+{
+	for (u32 i = 0; i < ArraySize(windsc_arr); i++) freeWinList.Add(&windsc_arr[i]);
+}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-//static __irq void HardFaultHandler()
-//{
-//	__breakpoint(0);
-//}
+WINDSC* AllocWinDsc()
+{
+	return freeWinList.Get();
+}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-//static __irq void ExtDummyHandler()
-//{
-//	__breakpoint(0);
-//}
+void FreeWinDsc(WINDSC* d)
+{
+	freeWinList.Add(d);
+}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-//static void InitVectorTable()
-//{
-//	for (u32 i = 0; i < ArraySize(VectorTableInt); i++)
-//	{
-//		VectorTableInt[i] = IntDummyHandler;
-//	};
-//
-//	for (u32 i = 0; i < ArraySize(VectorTableExt); i++)
-//	{
-//		VectorTableExt[i] = ExtDummyHandler;
-//	};
-//
-//	VectorTableInt[3] = HardFaultHandler;
-//
-//	CM0::SCB->VTOR = (u32)VectorTableInt;
-//}
+WINDSC* GetReadyWinDsc()
+{
+	return readyWinList.Get();
+}
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void SetWindowCount(u16 wc)
@@ -242,9 +237,9 @@ void SetWindowCount(u16 wc)
 	{
 		wc = 2;
 	}
-	else if (wc > ArraySize(m_ts))
+	else if (wc > WINDOW_SIZE)
 	{
-		wc = ArraySize(m_ts);
+		wc = WINDOW_SIZE;
 	};
 
 	options.win_count = windowCount = wc;
@@ -354,6 +349,55 @@ static void UpdateGenTime()
 			genTimeOut -= dt;
 		};
 	};
+
+	if (curWinDsc == 0)	PrepareWin();
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void PrepareWin()
+{
+	using namespace HW;
+
+	curWinDsc = AllocWinDsc();
+
+	if (curWinDsc == 0) return;
+
+	WinTC->CC16[0] = windowTime - 1; // временнќе окно
+	WinTC->CTRLA = TC_WAVEGEN_MFRQ;
+
+	curWinDsc->fireCount = 0;
+	curWinDsc->genWorkTime = genWorkTimeMinutes;
+	curWinDsc->temp = 0;
+	curWinDsc->winCount = windowCount;
+
+	DMAC->CHID = B_DMACH;
+	//DMAC->CHCTRLA = 0;
+	//DMAC->CHCTRLA = DMCH_SWRST; __dsb(15); while (DMAC->CHCTRLA & DMCH_SWRST);
+
+	DmaTable[B_DMACH].SRCADDR = &bTC->COUNT16;
+	DmaTable[B_DMACH].DSTADDR = curWinDsc->b_data + windowCount;
+	DmaTable[B_DMACH].DESCADDR = 0;
+	DmaTable[B_DMACH].BTCNT = windowCount;
+	DmaTable[B_DMACH].BTCTRL = DMDSC_VALID|DMDSC_BEATSIZE_HWORD|DMDSC_DSTINC|DMDSC_BLOCKACT_INT;
+
+	DMAC->CHCTRLB = DMCH_TRIGACT_BEAT|DMCH_TRIGSRC_TC3_OVF;
+	DMAC->CHINTENSET = DMCH_TCMPL;
+	DMAC->CHCTRLA = DMCH_ENABLE;
+
+	DMAC->CHID = M_DMACH;
+	//DMAC->CHCTRLA = 0;
+	//DMAC->CHCTRLA = DMCH_SWRST; __dsb(15); while (DMAC->CHCTRLA & DMCH_SWRST);
+
+	DmaTable[M_DMACH].SRCADDR = &mTC->COUNT16;
+	DmaTable[M_DMACH].DSTADDR = curWinDsc->m_data + windowCount;
+	DmaTable[M_DMACH].DESCADDR = 0;
+	DmaTable[M_DMACH].BTCNT = windowCount;
+	DmaTable[M_DMACH].BTCTRL = DMDSC_VALID|DMDSC_BEATSIZE_HWORD|DMDSC_DSTINC|DMDSC_BLOCKACT_INT;
+
+	DMAC->CHCTRLB = DMCH_TRIGACT_BEAT|DMCH_TRIGSRC_TC3_OVF;
+	DMAC->CHINTENSET = DMCH_TCMPL;
+	DMAC->CHCTRLA = DMCH_ENABLE;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -366,74 +410,78 @@ static __irq void GenIRQ()
 
 	GenTCC->INTFLAG = ~0;
 
-	cur_ts_index = 0;
-	max_ts_index = windowCount;
+	if (curWinDsc != 0)
+	{
+		WinTC->CTRLA = TC_ENABLE|TC_WAVEGEN_MFRQ;
 
-	WinTC->INTENSET = TC_MC0;
+		bTC->CTRLBSET = TC_CMD_RETRIGGER;
+		mTC->CTRLBSET = TC_CMD_RETRIGGER;
 
-	WinTC->CTRLA = TC_ENABLE|TC_WAVEGEN_MFRQ;
-//	WinTC->CTRLBSET = TC_CMD_RETRIGGER;
-
-	bTC->CTRLBSET = TC_CMD_RETRIGGER;
-	mTC->CTRLBSET = TC_CMD_RETRIGGER;
-
-	if (CheckGenEnabled()) { fireCount += 1; };
+		if (CheckGenEnabled()) { fireCount += 1; };
+	};
 
 	PIOA->BCLR(17);
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static __irq void WinIRQ()
-{
-	using namespace HW;
-
-	PIOA->BSET(18);
-
-	WinTC->INTFLAG = ~0;
-
-	b_ts[cur_ts_index] += bTC->COUNT16;
-	m_ts[cur_ts_index] += mTC->COUNT16;
-
-	bTC->CTRLBSET = TC_CMD_RETRIGGER;
-	mTC->CTRLBSET = TC_CMD_RETRIGGER;
-
-	cur_ts_index += 1;
-
-	if (cur_ts_index >= 64/*max_ts_index*/)
-	{
-		WinTC->CTRLA &= ~TC_ENABLE;
-//		WinTC->CTRLBSET = TC_CMD_STOP;
-	};
-
-	PIOA->BCLR(18);
-}
+//static __irq void WinIRQ()
+//{
+//	using namespace HW;
+//
+//	PIOA->BSET(18);
+//
+//	WinTC->INTFLAG = ~0;
+//
+//	b_ts[cur_ts_index] += bTC->COUNT16;
+//	m_ts[cur_ts_index] += mTC->COUNT16;
+//
+//	bTC->CTRLBSET = TC_CMD_RETRIGGER;
+//	mTC->CTRLBSET = TC_CMD_RETRIGGER;
+//
+//	cur_ts_index += 1;
+//
+//	if (cur_ts_index >= 64/*max_ts_index*/)
+//	{
+//		WinTC->CTRLA &= ~TC_ENABLE;
+////		WinTC->CTRLBSET = TC_CMD_STOP;
+//	};
+//
+//	PIOA->BCLR(18);
+//}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static __irq void WinIRQ2()
+static __irq void Win_DMA_IRQ()
 {
 	using namespace HW;
 
-	PIOA->BSET(18);
+	PIOA->BSET(19);
 
-	WinTC->INTFLAG = ~0;
+	u32 stat = DMAC->INTSTATUS;
 
-	b_ts[cur_ts_index] += bTC->COUNT16;
-	m_ts[cur_ts_index] += mTC->COUNT16;
-
-	bTC->CTRLBSET = TC_CMD_RETRIGGER;
-	mTC->CTRLBSET = TC_CMD_RETRIGGER;
-
-	cur_ts_index += 1;
-
-	if (cur_ts_index >= 64/*max_ts_index*/)
+	if (stat & (1<<B_DMACH))
 	{
-		WinTC->CTRLA &= ~TC_ENABLE;
-//		WinTC->CTRLBSET = TC_CMD_STOP;
+		DMAC->CHID = B_DMACH;
+		DMAC->CHINTFLAG = ~0;
 	};
 
-	PIOA->BCLR(18);
+	if (stat & (1<<M_DMACH))
+	{
+		DMAC->CHID = M_DMACH;
+		DMAC->CHINTFLAG = ~0;
+	};
+
+	if ((DMAC->BUSYCH & ((1<<B_DMACH)|(1<<M_DMACH))) == 0)
+	{
+		WinTC->CTRLA &= ~TC_ENABLE;
+
+		readyWinList.Add(curWinDsc); curWinDsc = 0;
+
+		//freeWinList.Add(curWinDsc); curWinDsc = 0;
+	};
+
+	PIOA->BCLR(19);
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -450,7 +498,7 @@ void InitGen()
 	PM->APBCMASK |= PM_APBC_TCC2|PM_APBC_TC3|PM_APBC_TC4|PM_APBC_TC5;
 	PM->APBCMASK |= PM_APBC_EVSYS;
 
-	HW::PIOA->DIRSET = D_FIRE|(7<<17);;
+	HW::PIOA->DIRSET = D_FIRE|PA17|PA18|PA19;
 	HW::PIOA->CLR(D_FIRE);
 
 	PIO_D_FIRE->SetWRCONFIG(D_FIRE,		PORT_PMUX(4) | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
@@ -475,14 +523,14 @@ void InitGen()
 	bTC->READREQ = TC_RCONT|0x10;
 	mTC->READREQ = TC_RCONT|0x10;
 
-	bTC->EVCTRL = TC_TCEI|TC_EVACT_COUNT;
-	mTC->EVCTRL = TC_TCEI|TC_EVACT_COUNT;
+	bTC->EVCTRL = 0;//TC_TCEI|TC_EVACT_COUNT;
+	mTC->EVCTRL = 0;//TC_TCEI|TC_EVACT_COUNT;
 
-	bTC->CC16[0] = ~1;
-	mTC->CC16[0] = ~1;
+	//bTC->CC16[0] = ~1;
+	//mTC->CC16[0] = ~1;
 
-	bTC->CTRLA = TC_WAVEGEN_MFRQ|TC_ENABLE;
-	mTC->CTRLA = TC_WAVEGEN_MFRQ|TC_ENABLE;
+	bTC->CTRLA = TC_WAVEGEN_NFRQ|TC_ENABLE;
+	mTC->CTRLA = TC_WAVEGEN_NFRQ|TC_ENABLE;
 
 	// Win timer
 
@@ -492,11 +540,19 @@ void InitGen()
 	WinTC->READREQ = TC_RCONT|0x18;
 
 	WinTC->CC16[0] = windowTime - 1; // временнќе окно
+	WinTC->CC16[1] = 0; // временнќе окно
+	WinTC->EVCTRL = TC_OVFEO;
 	WinTC->CTRLA = TC_WAVEGEN_MFRQ;
 
-	VectorTableExt[WIN_IRQ] = WinIRQ;
+	VectorTableExt[WIN_IRQ] = Win_DMA_IRQ;
 	CM0::NVIC->ICPR[0] = 1 << WIN_IRQ;
 	CM0::NVIC->ISER[0] = 1 << WIN_IRQ;	
+
+	PIOA->SetWRCONFIG(PA18,	PORT_PMUX_E | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
+
+	InitWinLsit();
+
+	//PrepareWin();
 
 	// Gen timer
 
@@ -1355,7 +1411,7 @@ static __irq void ManTrmIRQ_3()
 					stateManTrans++;
 				};
 
-				//ManT_CCU8->GCSS = ManT_CCU8_GCSS;
+				//ManTT->CTRLBSET = TCC_CMD_UPDATE;
 
 				tw <<= 1;
 				count--;
@@ -1402,7 +1458,7 @@ static __irq void ManTrmIRQ_3()
 				count--;
 			};
 
-			//ManT_CCU8->GCSS = ManT_CCU8_GCSS;
+			//ManTT->CTRLBSET = TCC_CMD_UPDATE;
 
 			break;
 
@@ -1461,7 +1517,7 @@ static __irq void ManTrmIRQ_3()
 				};
 			};
 
-			//ManT_CCU8->GCSS = ManT_CCU8_GCSS;
+			//ManTT->CTRLBSET = TCC_CMD_UPDATE;
 
 			break;
 
@@ -1486,7 +1542,7 @@ static __irq void ManTrmIRQ_3()
 
 	}; // 	switch (stateManTrans)
 
-	ManTT->INTFLAG = TCC_MC0;
+	ManTT->INTFLAG = TCC_OVF;
 
 	Pin_ManTrmIRQ_Clr();
 }
@@ -1495,7 +1551,7 @@ static __irq void ManTrmIRQ_3()
 
 bool SendManData_3(MTB* mtb)
 {
-	if (trmBusy || rcvBusy || mtb == 0 || mtb->data == 0 || mtb->len == 0)
+	if (trmBusy || mtb == 0 || mtb->data == 0 || mtb->len == 0)
 	{
 		return false;
 	};
@@ -1516,12 +1572,12 @@ bool SendManData_3(MTB* mtb)
 	stateManTrans = 0;
 
 	ManTT->CTRLA = MAN_PRESC;
-	ManTT->WAVE = TCC_WAVEGEN_NFRQ;//|TCC_POL0;
-	ManTT->DRVCTRL = 0;//TCC_INVEN1;
+	ManTT->WAVE = TCC_WAVEGEN_NPWM;//|TCC_POL0;
+	ManTT->DRVCTRL = TCC_INVEN1;
 
 	ManTT->PER = US2MT(50)-1;
-	ManTT->CC[0] = ~0; 
-	ManTT->CC[1] = 0; 
+	ManTT->CC[0] = 0; 
+	ManTT->CC[1] = ~0; 
 
 	ManTT->EVCTRL = 0;
 
@@ -1558,6 +1614,8 @@ static void InitManTransmit_3()
 	PIO_MANCH->CLR(M1|M2);
 	PIO_MANCH->DIRSET = M1|M2;
 	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+
+	PIOA->SetWRCONFIG(PA04|PA05, PORT_PMUX_E|PORT_WRPMUX|PORT_WRPINCFG|PORT_PMUXEN);
 
 	PIOA->DIRSET = PA10|PA11;
 

@@ -975,6 +975,33 @@ namespace T_HW
 	#define TCC_MC2        (1<<18)           /**< \brief (TCC_INTENCLR) Match or Capture Channel 2 Interrupt Enable */
 	#define TCC_MC3        (1<<19)           /**< \brief (TCC_INTENCLR) Match or Capture Channel 3 Interrupt Enable */
 
+	#define TCC_NRE0         		(1<<0)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 0 Output Enable */
+	#define TCC_NRE1         		(1<<1)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 1 Output Enable */
+	#define TCC_NRE2         		(1<<2)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 2 Output Enable */
+	#define TCC_NRE3         		(1<<3)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 3 Output Enable */
+	#define TCC_NRE4         		(1<<4)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 4 Output Enable */
+	#define TCC_NRE5         		(1<<5)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 5 Output Enable */
+	#define TCC_NRE6         		(1<<6)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 6 Output Enable */
+	#define TCC_NRE7         		(1<<7)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 7 Output Enable */
+	#define TCC_NRV0         		(1<<8)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 0 Output Value */
+	#define TCC_NRV1         		(1<<9)            /**< \brief (TCC_DRVCTRL) Non-Recoverable State 1 Output Value */
+	#define TCC_NRV2         		(1<<10)           /**< \brief (TCC_DRVCTRL) Non-Recoverable State 2 Output Value */
+	#define TCC_NRV3         		(1<<11)           /**< \brief (TCC_DRVCTRL) Non-Recoverable State 3 Output Value */
+	#define TCC_NRV4         		(1<<12)           /**< \brief (TCC_DRVCTRL) Non-Recoverable State 4 Output Value */
+	#define TCC_NRV5         		(1<<13)           /**< \brief (TCC_DRVCTRL) Non-Recoverable State 5 Output Value */
+	#define TCC_NRV6         		(1<<14)           /**< \brief (TCC_DRVCTRL) Non-Recoverable State 6 Output Value */
+	#define TCC_NRV7         		(1<<15)           /**< \brief (TCC_DRVCTRL) Non-Recoverable State 7 Output Value */
+	#define TCC_INVEN0       		(1<<16)           /**< \brief (TCC_DRVCTRL) Output Waveform 0 Inversion */
+	#define TCC_INVEN1       		(1<<17)           /**< \brief (TCC_DRVCTRL) Output Waveform 1 Inversion */
+	#define TCC_INVEN2       		(1<<18)           /**< \brief (TCC_DRVCTRL) Output Waveform 2 Inversion */
+	#define TCC_INVEN3       		(1<<19)           /**< \brief (TCC_DRVCTRL) Output Waveform 3 Inversion */
+	#define TCC_INVEN4       		(1<<20)           /**< \brief (TCC_DRVCTRL) Output Waveform 4 Inversion */
+	#define TCC_INVEN5       		(1<<21)           /**< \brief (TCC_DRVCTRL) Output Waveform 5 Inversion */
+	#define TCC_INVEN6       		(1<<22)           /**< \brief (TCC_DRVCTRL) Output Waveform 6 Inversion */
+	#define TCC_INVEN7       		(1<<23)           /**< \brief (TCC_DRVCTRL) Output Waveform 7 Inversion */
+	#define TCC_FILTERVAL0(value) 	((value)&0xF << 24)
+	#define TCC_FILTERVAL1(value) 	((value)&0xF << 28)
+
 	#define TCC_EVACT0_OFF       	(0x0)		/**< \brief (TCC_EVCTRL) Event action disabled */
 	#define TCC_EVACT0_RETRIGGER 	(0x1)		/**< \brief (TCC_EVCTRL) Start, restart or re-trigger counter on event */
 	#define TCC_EVACT0_COUNTEV   	(0x2)		/**< \brief (TCC_EVCTRL) Count on event */
