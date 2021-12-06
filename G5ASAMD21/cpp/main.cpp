@@ -351,6 +351,8 @@ static void UpdateTemp()
 			}
 			else if (tm.Check(200))
 			{
+				HW::ResetWDT();
+
 				dsc.wdata = &reg;
 				dsc.wlen = 1;
 				dsc.rdata = &rbuf;
@@ -358,7 +360,6 @@ static void UpdateTemp()
 				dsc.adr = 0x49;
 				dsc.wdata2 = 0;
 				dsc.wlen2 = 0;
-
 
 				if (Write_I2C(&dsc))
 				{
@@ -588,8 +589,8 @@ static void UpdateWindow()
 
 	for (u32 n = 1; n < d->winCount; n++)
 	{
-		t = d->b_data[n]; b_ts[n] += t - bsum; bsum = t;
-		t = d->m_data[n]; m_ts[n] += t - msum; msum = t;
+		t = d->b_data[n]; b_ts[n] += (u16)(t - bsum); bsum = t;
+		t = d->m_data[n]; m_ts[n] += (u16)(t - msum); msum = t;
 	};
 
 	FreeWinDsc(d); d = 0;

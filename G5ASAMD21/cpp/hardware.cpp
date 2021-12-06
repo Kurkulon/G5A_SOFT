@@ -130,8 +130,10 @@ __align(16) T_HW::DMADESC 		DmaWRB[12];
 #define DNNKM_EVSYS_CHANNEL			(EVENT_DNNKM|DNNKM_EVSYS_GEN_EIC_EXTINT|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
 #define DNNKM_EVSYS_USER			(EVSYS_USER_CHANNEL(EVENT_DNNKM)|EVSYS_USER_TC5_EVU)
 
-//#define WIN_EVSYS_CHANNEL			(EVENT_WIN|EVSYS_GEN_TC3_OVF|EVSYS_PATH_ASYNCHRONOUS|EVSYS_EDGSEL_RISING_EDGE)
-//#define WIN_EVSYS_USER				(EVSYS_USER_CHANNEL(EVENT_WIN)|EVSYS_USER_TC5_EVU)
+#define GEN_DIV						256
+#define GEN_PRESC					TCC_PRESCALER_DIV256
+#define WIN_DIV						16
+#define WIN_PRESC					TC_PRESCALER_DIV16
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -147,11 +149,28 @@ extern "C" void SystemInit()
 	HW::PIOA->CLR(PA15|PA13|PA01|PA02|PA03|D_FIRE|M1|M2);
 	HW::PIOA->DIRSET = PA15|PA13|PA01|PA02|PA03|D_FIRE|M1|M2;
 
+	HW::PIOA->BSET(15);
+
+	HW::SYSCTRL->BOD33 = 0;
+	HW::SYSCTRL->BOD33 = BOD33_HYST | BOD33_ACTION_INTERRUPT | BOD33_LEVEL(44); // Vbod = 1.5 + 34mV * BOD33_LEVEL
+	HW::SYSCTRL->BOD33 |= BOD33_ENABLE;
+
+	while ((HW::SYSCTRL->PCLKSR & (PCLKSR_BOD33RDY|PCLKSR_B33SRDY)) != (PCLKSR_BOD33RDY|PCLKSR_B33SRDY));
+	while ((HW::SYSCTRL->PCLKSR & PCLKSR_BOD33DET) != 0);
+
+	HW::SYSCTRL->BOD33 = 0;
+	HW::SYSCTRL->BOD33 = BOD33_HYST | BOD33_ACTION_RESET | BOD33_LEVEL(44); // Vbod = 1.5 + 34mV * BOD33_LEVEL
+	HW::SYSCTRL->BOD33 |= BOD33_ENABLE;
+
+	HW::PIOA->BCLR(15);
+
 	HW::NVMCTRL->CTRLB = NVMCTRL_MANW|NVMCTRL_RWS_HALF;
 
 	SYSCTRL->XOSC = XOSC_ENABLE|XOSC_ONDEMAND; // RUNSTDBY|ENABLE
 
 	SYSCTRL->DPLLCTRLA = 0; while ((SYSCTRL->DPLLSTATUS & DPLLSTATUS_ENABLE) != 0);
+
+	HW::PIOA->BSET(15);
 
 	SYSCTRL->DPLLCTRLB = DPLL_REFCLK_XOSC|DPLL_DIV(7);						// XOSC clock source division factor 16 = 2*(DIV+1), XOSC clock reference
 	SYSCTRL->DPLLRATIO = DPLL_LDR((MCK+500000)/1000000-1)|DPLL_LDRFRAC(0);	// Loop Divider Ratio = 48, Loop Divider Ratio Fractional Part = 0
@@ -164,6 +183,8 @@ extern "C" void SystemInit()
 	HW::GCLK->GenDivCtrl(GEN_16M,	1,	GCLK_SRC_XOSC		|	GCLK_GENEN	| GCLK_OE);
 	HW::GCLK->GenDivCtrl(GEN_500K,	10,	GCLK_SRC_XOSC		|	GCLK_GENEN	| GCLK_OE);
 
+	HW::PIOA->BCLR(15);
+
 	HW::PIOB->SetWRCONFIG(PB22|PB23, PORT_PMUX_H | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
 	HW::PIOB->PINCFG[22] = PINGFG_DRVSTR|PINGFG_PMUXEN;
 	HW::PIOB->PINCFG[23] = PINGFG_DRVSTR|PINGFG_PMUXEN;
@@ -172,6 +193,8 @@ extern "C" void SystemInit()
 	HW::DMAC->BASEADDR	= DmaTable;
 	HW::DMAC->WRBADDR	= DmaWRB;
 	HW::DMAC->CTRL = DMAC_DMAENABLE|DMAC_LVLEN0|DMAC_LVLEN1|DMAC_LVLEN2|DMAC_LVLEN3;
+
+	HW::PIOA->BSET(15);
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -188,7 +211,7 @@ u16 genWorkTimeMilliseconds = 0;
 u16 genTimeOut = 0;
 u16 fireCount = 0;
 
-u16 gen_period = 6249;
+u16 gen_period = 4687;
 u16 gen_freq = 10;
 
 WINDSC windsc_arr[4];
@@ -276,7 +299,7 @@ void SetGenFreq(u16 freq)
 
 	options.gen_freq = gen_freq = freq;
 
-	gen_period = ((1000000UL / 16) + (gen_freq>>1)) / gen_freq - 1;
+	gen_period = ((MCK / GEN_DIV) + (gen_freq>>1)) / gen_freq - 1;
 
 	GenTCC->PER = gen_period;
 	GenTCC->CTRLBSET = TCC_CMD_UPDATE;
@@ -363,8 +386,15 @@ static void PrepareWin()
 
 	if (curWinDsc == 0) return;
 
-	WinTC->CC16[0] = windowTime - 1; // временнќе окно
-	WinTC->CTRLA = TC_WAVEGEN_MFRQ;
+	WinTC->CTRLA = TC_SWRST;
+	while(WinTC->STATUS & TC_SYNCBUSY);
+
+	//WinTC->READREQ = TC_RCONT|0x18;
+
+	WinTC->CC16[0] = windowTime*(MCK_MHz/WIN_DIV) - 1; // временнќе окно
+	WinTC->CC16[1] = 0; // временнќе окно
+	WinTC->EVCTRL = TC_OVFEO;
+	WinTC->CTRLA = WIN_PRESC|TC_WAVEGEN_MFRQ;
 
 	curWinDsc->fireCount = 0;
 	curWinDsc->genWorkTime = genWorkTimeMinutes;
@@ -372,8 +402,6 @@ static void PrepareWin()
 	curWinDsc->winCount = windowCount;
 
 	DMAC->CHID = B_DMACH;
-	//DMAC->CHCTRLA = 0;
-	//DMAC->CHCTRLA = DMCH_SWRST; __dsb(15); while (DMAC->CHCTRLA & DMCH_SWRST);
 
 	DmaTable[B_DMACH].SRCADDR = &bTC->COUNT16;
 	DmaTable[B_DMACH].DSTADDR = curWinDsc->b_data + windowCount;
@@ -386,8 +414,6 @@ static void PrepareWin()
 	DMAC->CHCTRLA = DMCH_ENABLE;
 
 	DMAC->CHID = M_DMACH;
-	//DMAC->CHCTRLA = 0;
-	//DMAC->CHCTRLA = DMCH_SWRST; __dsb(15); while (DMAC->CHCTRLA & DMCH_SWRST);
 
 	DmaTable[M_DMACH].SRCADDR = &mTC->COUNT16;
 	DmaTable[M_DMACH].DSTADDR = curWinDsc->m_data + windowCount;
@@ -412,7 +438,7 @@ static __irq void GenIRQ()
 
 	if (curWinDsc != 0)
 	{
-		WinTC->CTRLA = TC_ENABLE|TC_WAVEGEN_MFRQ;
+		WinTC->CTRLA = TC_ENABLE|TC_PRESCALER_DIV16|TC_WAVEGEN_MFRQ;
 
 		bTC->CTRLBSET = TC_CMD_RETRIGGER;
 		mTC->CTRLBSET = TC_CMD_RETRIGGER;
@@ -490,7 +516,7 @@ void InitGen()
 {
 	using namespace HW;
 
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC2_TC3				|	GCLK_GEN(GEN_1M)	|	GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_TCC2_TC3				|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN;
 	HW::GCLK->CLKCTRL = GCLK_ID_TC4_TC5					|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN;
 	HW::GCLK->CLKCTRL = (GCLK_ID_EVSYS_0 + EVENT_DNNKB)	|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKB
 	HW::GCLK->CLKCTRL = (GCLK_ID_EVSYS_0 + EVENT_DNNKB)	|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // NNKM
@@ -534,15 +560,15 @@ void InitGen()
 
 	// Win timer
 
-	WinTC->CTRLA = TC_SWRST;
-	while(WinTC->STATUS & TC_SYNCBUSY);
+	//WinTC->CTRLA = TC_SWRST;
+	//while(WinTC->STATUS & TC_SYNCBUSY);
 
-	WinTC->READREQ = TC_RCONT|0x18;
+	//WinTC->READREQ = TC_RCONT|0x18;
 
-	WinTC->CC16[0] = windowTime - 1; // временнќе окно
-	WinTC->CC16[1] = 0; // временнќе окно
-	WinTC->EVCTRL = TC_OVFEO;
-	WinTC->CTRLA = TC_WAVEGEN_MFRQ;
+	//WinTC->CC16[0] = windowTime*(MCK_MHz/WIN_DIV) - 1; // временнќе окно
+	//WinTC->CC16[1] = 0; // временнќе окно
+	//WinTC->EVCTRL = TC_OVFEO;
+	//WinTC->CTRLA = WIN_PRESC|TC_WAVEGEN_MFRQ;
 
 	VectorTableExt[WIN_IRQ] = Win_DMA_IRQ;
 	CM0::NVIC->ICPR[0] = 1 << WIN_IRQ;
@@ -567,15 +593,17 @@ void InitGen()
 
 	GenTCC->WAVE = TCC_WAVEGEN_NPWM;
 	GenTCC->PER = gen_period;
-	GenTCC->CC[0] = 1;
+	GenTCC->CC[0] = 2;
 
 	GenTCC->INTENCLR = ~0;
 	GenTCC->INTENSET = TCC_OVF;
 
 	GenTCC->INTFLAG = ~0;
 
-	GenTCC->CTRLA = TCC_PRESCALER_DIV16;
-	GenTCC->CTRLA = TCC_PRESCALER_DIV16|TCC_ENABLE;
+	GenTCC->CTRLA = GEN_PRESC;
+	GenTCC->CTRLA = GEN_PRESC|TCC_ENABLE;
+
+	SetGenFreq(gen_freq);
 
 	genTimeOut = 60000;
 }
@@ -881,487 +909,487 @@ inline u16 CheckParity(u16 x)
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static __irq void ManTrmIRQ()
-{
-	static u32 tw = 0;
-	static u16 count = 0;
-	static byte i = 0;
-	static const u16 *data = 0;
-	static u16 len = 0;
-	static bool cmd = false;
-
-//	HW::PIOA->BSET(13);
-
-	switch (stateManTrans)
-	{
-		case 0:	// Idle; 
-
-			ManDisable();
-		
-			data = manTB->data;
-			len = manTB->len;
-			stateManTrans = 1;
-			cmd = true;
-
-			break;
-
-		case 1: // Start data
-
-			i = 3;
-			tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
-
-			data++;
-			len--;
-
-			if (cmd) { ManZero(); }	else { ManOne(); };
-
-			//ManOne();
-
-			stateManTrans++;
-
-			break;
-
-		case 2:	// Wait data 1-st sync imp
-
-			i--;
-
-			if (i == 0)
-			{
-				stateManTrans++;
-
-				if (cmd) { ManOne(); }	else { ManZero(); };
-
-				//ManZero();
-
-				cmd = false;
-
-				i = 3;
-			};
-
-			break;
-
-		case 3: // Wait 2-nd sync imp
-
-			i--;
-
-			if (i == 0)
-			{
-				stateManTrans++;
-				count = 17;
-
-				if (tw & 0x10000) ManZero(); else ManOne();
-			};
-
-			break;
-
-		case 4: // 1-st half bit wait
-
-			if (tw & 0x10000) ManOne(); else ManZero();
-
-			count--;
-
-			if (count == 0)
-			{
-				if (len > 0)
-				{
-					stateManTrans = 1;
-				}
-				else if (manTB->next != 0)
-				{
-					manTB->ready = true;
-
-					manTB = manTB->next;
-
-					len = manTB->len;
-					data = manTB->data;
-
-					stateManTrans = (data != 0 && len != 0) ? 1 : 6;
-				}
-				else
-				{
-					stateManTrans = 6;
-				};
-			}
-			else
-			{
-				stateManTrans++;
-			};
-
-			break;
-
-		case 5: // 2-nd half bit wait
-
-			tw <<= 1;
-			stateManTrans = 4;
-			if (tw & 0x10000) ManZero(); else ManOne();
-
-			break;
-
-		case 6:
-
-			stateManTrans++;
-
-			break;
-
-		case 7:
-
-			ManDisable();
-			stateManTrans = 0;
-
-			ManTT->CTRLA = 0;
-			ManTT->INTENCLR = ~0;
-
-			manTB->ready = true;
-			trmBusy = false;
-
-			break;
-
-
-	}; // 	switch (stateManTrans)
-
-
-	__dsb(15);
-
-	ManTT->INTFLAG = TCC_OVF;
-
-	__dsb(15);
-
-//	HW::PIOA->BCLR(13);
-}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-bool SendManData(MTB *mtb)
-{
-	if (trmBusy /*|| rcvBusy*/ || mtb == 0 || mtb->data == 0 || mtb->len == 0)
-	{
-		return false;
-	};
-
-	mtb->ready = false;
-
-	manTB = mtb;
-
-	stateManTrans = 0;
-
-	ManTT->CTRLA = 0;
-
-	VectorTableExt[TCC0_IRQ] = ManTrmIRQ;
-	CM0::NVIC->ICPR[0] = 1 << TCC0_IRQ;
-	CM0::NVIC->ISER[0] = 1 << TCC0_IRQ;	
-
-	ManTT->PER = trmHalfPeriod-1;
-	//ManTT->EVCTRL = 1<<6;
-
-	ManTT->INTENCLR = ~TCC_OVF;
-	ManTT->INTENSET = TCC_OVF;
-
-	ManTT->INTFLAG = ~0;
-
-	ManTT->CTRLA = TCC_ENABLE;
-
-	return trmBusy = true;
-}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static void InitManTransmit()
-{
-	using namespace HW;
-
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_1M) | GCLK_CLKEN;
-
-	PM->APBCMASK |= PM_APBC_TCC0;
-
-	HW::PIOA->DIRSET = M1|M2;
-
-	ManTT->CTRLA = TCC_SWRST;
-
-	while(ManTT->SYNCBUSY);
-
-	VectorTableExt[MANT_IRQ] = ManTrmIRQ;
-	CM0::NVIC->ICPR[0] = 1 << MANT_IRQ;
-	CM0::NVIC->ISER[0] = 1 << MANT_IRQ;	
-
-	SetTrmBoudRate(0);
-
-	ManTT->PER = trmHalfPeriod-1;
-	//ManTT->EVCTRL = 1<<6;
-
-	ManTT->INTENCLR = ~TCC_OVF;
-	ManTT->INTENSET = TCC_OVF;
-
-	ManTT->INTFLAG = ~0;
-
-	//ManTT->CTRLA = TCC_ENABLE;
-
-	ManDisable();
-}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-byte stateMT = 0;
-static MTB *manTB2 = 0;
-static bool trmBusy2 = false;
-static bool trmTurbo = false;
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static __irq void ManTrmIRQ_2()
-{
-	static u32 tw = 0;
-	static u16 count = 0;
-	static const u16 *data = 0;
-	static u16 len = 0;
-
-	HW::PIOA->BSET(10);
-	
-	while(ManTT->SYNCBUSY);
-
-	switch (stateMT)
-	{
-		case 0:	// 1-st sync imp 
-
-			HW::PIOA->BSET(11); 
-
-			data = manTB2->data;
-			len = manTB2->len;
-
-			ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
-			stateMT++;
-
-			break;
-
-		case 1:	// 2-nd sync imp
-
-			tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
-
-			data++;
-			len--;
-
-			count = 17;
-
-			if (tw & 0x10000)
-			{
-				ManTT->CC[0] += trmHalfPeriod*4; //US2MT(96);
-				ManTT->CC[1] += trmHalfPeriod*4; //US2MT(96);
-				stateMT += 2;
-			}
-			else
-			{
-				ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
-				ManTT->CC[1] += trmHalfPeriod*3; //US2MT(72);
-				stateMT++;
-			};
- 
-			break;
-
-		case 2: // 1-st half bit
-
-			ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
-			ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
-			stateMT++;
-
-			break;
-
-		case 3:	// 2-nd half bit
-
-			count--;
-
-			if (count != 0)
-			{
-				u32 t = tw;
-				tw <<= 1;
-
-				t = (t ^ tw) & 0x10000;
-
-				if (t)
-				{
-					ManTT->CC[0] += trmHalfPeriod*2; //US2MT(48);
-					ManTT->CC[1] += trmHalfPeriod*2; //US2MT(48);
-					stateMT = 3;
-				}
-				else
-				{
-					ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
-					ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
-					stateMT = 2;
-				};
-			}
-			else
-			{
-				if (len == 0)
-				{
-					if (manTB2->next != 0)
-					{
-						manTB2->ready = true;
-
-						manTB2 = manTB2->next;
-
-						len = manTB2->len;
-						data = manTB2->data;
-					};
-				};
-
-				if (len > 0)
-				{
-					if (!trmTurbo)
-					{
-						if (tw & 0x10000)
-						{
-							ManTT->CC[0] += trmHalfPeriod*4;
-							ManTT->CC[1] += trmHalfPeriod*4;
-							stateMT = 1;
-						}
-						else
-						{
-							ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
-							ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
-							stateMT++;
-						};
-					}
-					else
-					{
-						tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
-
-						data++;
-						len--;
-
-						count = 17;
-
-						if (tw & 0x10000)
-						{
-							ManTT->CC[0] += trmHalfPeriod*4; //US2MT(96);
-							ManTT->CC[1] += trmHalfPeriod*4; //US2MT(96);
-							stateMT = 3;
-						}
-						else
-						{
-							ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
-							ManTT->CC[1] += trmHalfPeriod*3; //US2MT(72);
-							stateMT = 2;
-						};
-					};
-				}
-				else
-				{
-					ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
-					ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
-
-					stateMT += 2;
-				}
-			};
-
-			break;
-
-		case 4:
-
-			ManTT->CC[0] += trmHalfPeriod*3;
-			ManTT->CC[1] += trmHalfPeriod*3;
-			stateMT = 1;
-
-			break;
-
-		case 5:
-
+//static __irq void ManTrmIRQ()
+//{
+//	static u32 tw = 0;
+//	static u16 count = 0;
+//	static byte i = 0;
+//	static const u16 *data = 0;
+//	static u16 len = 0;
+//	static bool cmd = false;
+//
+////	HW::PIOA->BSET(13);
+//
+//	switch (stateManTrans)
+//	{
+//		case 0:	// Idle; 
+//
 //			ManDisable();
-			stateMT = 0;
-
-			PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
-
-//			ManTT->CTRLBSET = TCC_CMD_STOP;
-			
-			//while(ManTT->SYNCBUSY);
-
-			//__dsb(15);
-
-			ManTT->CTRLA &= ~TCC_ENABLE;
-
-			//__dsb(15);
-
-			manTB2->ready = true;
-			trmBusy2 = false;
-
-			break;
-
-
-	}; // 	switch (stateManTrans)
-
-
-	ManTT->INTFLAG = TCC_MC0;
-
-	ManTT->CTRLBSET = TCC_CMD_UPDATE;
-
-	HW::PIOA->BCLR(10);
-	HW::PIOA->BCLR(11);
-}
+//		
+//			data = manTB->data;
+//			len = manTB->len;
+//			stateManTrans = 1;
+//			cmd = true;
+//
+//			break;
+//
+//		case 1: // Start data
+//
+//			i = 3;
+//			tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
+//
+//			data++;
+//			len--;
+//
+//			if (cmd) { ManZero(); }	else { ManOne(); };
+//
+//			//ManOne();
+//
+//			stateManTrans++;
+//
+//			break;
+//
+//		case 2:	// Wait data 1-st sync imp
+//
+//			i--;
+//
+//			if (i == 0)
+//			{
+//				stateManTrans++;
+//
+//				if (cmd) { ManOne(); }	else { ManZero(); };
+//
+//				//ManZero();
+//
+//				cmd = false;
+//
+//				i = 3;
+//			};
+//
+//			break;
+//
+//		case 3: // Wait 2-nd sync imp
+//
+//			i--;
+//
+//			if (i == 0)
+//			{
+//				stateManTrans++;
+//				count = 17;
+//
+//				if (tw & 0x10000) ManZero(); else ManOne();
+//			};
+//
+//			break;
+//
+//		case 4: // 1-st half bit wait
+//
+//			if (tw & 0x10000) ManOne(); else ManZero();
+//
+//			count--;
+//
+//			if (count == 0)
+//			{
+//				if (len > 0)
+//				{
+//					stateManTrans = 1;
+//				}
+//				else if (manTB->next != 0)
+//				{
+//					manTB->ready = true;
+//
+//					manTB = manTB->next;
+//
+//					len = manTB->len;
+//					data = manTB->data;
+//
+//					stateManTrans = (data != 0 && len != 0) ? 1 : 6;
+//				}
+//				else
+//				{
+//					stateManTrans = 6;
+//				};
+//			}
+//			else
+//			{
+//				stateManTrans++;
+//			};
+//
+//			break;
+//
+//		case 5: // 2-nd half bit wait
+//
+//			tw <<= 1;
+//			stateManTrans = 4;
+//			if (tw & 0x10000) ManZero(); else ManOne();
+//
+//			break;
+//
+//		case 6:
+//
+//			stateManTrans++;
+//
+//			break;
+//
+//		case 7:
+//
+//			ManDisable();
+//			stateManTrans = 0;
+//
+//			ManTT->CTRLA = 0;
+//			ManTT->INTENCLR = ~0;
+//
+//			manTB->ready = true;
+//			trmBusy = false;
+//
+//			break;
+//
+//
+//	}; // 	switch (stateManTrans)
+//
+//
+//	__dsb(15);
+//
+//	ManTT->INTFLAG = TCC_OVF;
+//
+//	__dsb(15);
+//
+////	HW::PIOA->BCLR(13);
+//}
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-bool SendManData_2(MTB *mtb)
-{
-	if (trmBusy2 || mtb == 0 || mtb->data == 0 || mtb->len == 0)
-	{
-		return false;
-	};
-
-	mtb->ready = false;
-
-	manTB2 = mtb;
-
-	stateMT = 0;
-
-	ManTT->CTRLA = MAN_PRESC;
-	ManTT->WAVE = TCC_WAVEGEN_NFRQ;//|TCC_POL0;
-	ManTT->DRVCTRL = 0;//TCC_INVEN1;
-	ManTT->PER = 0xFFFFFF;
-	ManTT->CC[0] = US2MT(100); 
-	ManTT->CC[1] = US2MT(100)+trmHalfPeriod*3; 
-
-	ManTT->EVCTRL = 0;
-
-	ManTT->INTENCLR = ~0;
-	ManTT->INTENSET = TCC_MC0;
-	ManTT->INTFLAG = TCC_MC0;
-
-	ManTT->CTRLA = MAN_PRESC|TCC_ENABLE;
-	ManTT->CTRLBSET = TCC_CMD_RETRIGGER;
-
-	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_PMUX_E|PORT_WRPMUX|PORT_WRPINCFG|PORT_PMUXEN);
-	PIO_MANCH->CLR(M1|M2);
-	PIO_MANCH->DIRSET = M1|M2;
-
-	return trmBusy2 = true;
-}
+//bool SendManData(MTB *mtb)
+//{
+//	if (trmBusy /*|| rcvBusy*/ || mtb == 0 || mtb->data == 0 || mtb->len == 0)
+//	{
+//		return false;
+//	};
+//
+//	mtb->ready = false;
+//
+//	manTB = mtb;
+//
+//	stateManTrans = 0;
+//
+//	ManTT->CTRLA = 0;
+//
+//	VectorTableExt[TCC0_IRQ] = ManTrmIRQ;
+//	CM0::NVIC->ICPR[0] = 1 << TCC0_IRQ;
+//	CM0::NVIC->ISER[0] = 1 << TCC0_IRQ;	
+//
+//	ManTT->PER = trmHalfPeriod-1;
+//	//ManTT->EVCTRL = 1<<6;
+//
+//	ManTT->INTENCLR = ~TCC_OVF;
+//	ManTT->INTENSET = TCC_OVF;
+//
+//	ManTT->INTFLAG = ~0;
+//
+//	ManTT->CTRLA = TCC_ENABLE;
+//
+//	return trmBusy = true;
+//}
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static void InitManTransmit_2()
-{
-	using namespace HW;
+//static void InitManTransmit()
+//{
+//	using namespace HW;
+//
+//	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_1M) | GCLK_CLKEN;
+//
+//	PM->APBCMASK |= PM_APBC_TCC0;
+//
+//	HW::PIOA->DIRSET = M1|M2;
+//
+//	ManTT->CTRLA = TCC_SWRST;
+//
+//	while(ManTT->SYNCBUSY);
+//
+//	VectorTableExt[MANT_IRQ] = ManTrmIRQ;
+//	CM0::NVIC->ICPR[0] = 1 << MANT_IRQ;
+//	CM0::NVIC->ISER[0] = 1 << MANT_IRQ;	
+//
+//	SetTrmBoudRate(0);
+//
+//	ManTT->PER = trmHalfPeriod-1;
+//	//ManTT->EVCTRL = 1<<6;
+//
+//	ManTT->INTENCLR = ~TCC_OVF;
+//	ManTT->INTENSET = TCC_OVF;
+//
+//	ManTT->INTFLAG = ~0;
+//
+//	//ManTT->CTRLA = TCC_ENABLE;
+//
+//	ManDisable();
+//}
 
-	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_MCK) | GCLK_CLKEN;
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	while (HW::GCLK->STATUS);
+//byte stateMT = 0;
+//static MTB *manTB2 = 0;
+//static bool trmBusy2 = false;
+//static bool trmTurbo = false;
 
-	PM->APBCMASK |= PM_APBC_TCC0;
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	PIO_MANCH->CLR(M1|M2);
-	PIO_MANCH->DIRSET = M1|M2;
-	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+//static __irq void ManTrmIRQ_2()
+//{
+//	static u32 tw = 0;
+//	static u16 count = 0;
+//	static const u16 *data = 0;
+//	static u16 len = 0;
+//
+//	HW::PIOA->BSET(10);
+//	
+//	while(ManTT->SYNCBUSY);
+//
+//	switch (stateMT)
+//	{
+//		case 0:	// 1-st sync imp 
+//
+//			HW::PIOA->BSET(11); 
+//
+//			data = manTB2->data;
+//			len = manTB2->len;
+//
+//			ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
+//			stateMT++;
+//
+//			break;
+//
+//		case 1:	// 2-nd sync imp
+//
+//			tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
+//
+//			data++;
+//			len--;
+//
+//			count = 17;
+//
+//			if (tw & 0x10000)
+//			{
+//				ManTT->CC[0] += trmHalfPeriod*4; //US2MT(96);
+//				ManTT->CC[1] += trmHalfPeriod*4; //US2MT(96);
+//				stateMT += 2;
+//			}
+//			else
+//			{
+//				ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
+//				ManTT->CC[1] += trmHalfPeriod*3; //US2MT(72);
+//				stateMT++;
+//			};
+// 
+//			break;
+//
+//		case 2: // 1-st half bit
+//
+//			ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+//			ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+//			stateMT++;
+//
+//			break;
+//
+//		case 3:	// 2-nd half bit
+//
+//			count--;
+//
+//			if (count != 0)
+//			{
+//				u32 t = tw;
+//				tw <<= 1;
+//
+//				t = (t ^ tw) & 0x10000;
+//
+//				if (t)
+//				{
+//					ManTT->CC[0] += trmHalfPeriod*2; //US2MT(48);
+//					ManTT->CC[1] += trmHalfPeriod*2; //US2MT(48);
+//					stateMT = 3;
+//				}
+//				else
+//				{
+//					ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+//					ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+//					stateMT = 2;
+//				};
+//			}
+//			else
+//			{
+//				if (len == 0)
+//				{
+//					if (manTB2->next != 0)
+//					{
+//						manTB2->ready = true;
+//
+//						manTB2 = manTB2->next;
+//
+//						len = manTB2->len;
+//						data = manTB2->data;
+//					};
+//				};
+//
+//				if (len > 0)
+//				{
+//					if (!trmTurbo)
+//					{
+//						if (tw & 0x10000)
+//						{
+//							ManTT->CC[0] += trmHalfPeriod*4;
+//							ManTT->CC[1] += trmHalfPeriod*4;
+//							stateMT = 1;
+//						}
+//						else
+//						{
+//							ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+//							ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+//							stateMT++;
+//						};
+//					}
+//					else
+//					{
+//						tw = ((u32)(*data) << 1) | (CheckParity(*data) & 1);
+//
+//						data++;
+//						len--;
+//
+//						count = 17;
+//
+//						if (tw & 0x10000)
+//						{
+//							ManTT->CC[0] += trmHalfPeriod*4; //US2MT(96);
+//							ManTT->CC[1] += trmHalfPeriod*4; //US2MT(96);
+//							stateMT = 3;
+//						}
+//						else
+//						{
+//							ManTT->CC[0] += trmHalfPeriod*3; //US2MT(72);
+//							ManTT->CC[1] += trmHalfPeriod*3; //US2MT(72);
+//							stateMT = 2;
+//						};
+//					};
+//				}
+//				else
+//				{
+//					ManTT->CC[0] += trmHalfPeriod; //US2MT(24);
+//					ManTT->CC[1] += trmHalfPeriod; //US2MT(24);
+//
+//					stateMT += 2;
+//				}
+//			};
+//
+//			break;
+//
+//		case 4:
+//
+//			ManTT->CC[0] += trmHalfPeriod*3;
+//			ManTT->CC[1] += trmHalfPeriod*3;
+//			stateMT = 1;
+//
+//			break;
+//
+//		case 5:
+//
+////			ManDisable();
+//			stateMT = 0;
+//
+//			PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+//
+////			ManTT->CTRLBSET = TCC_CMD_STOP;
+//			
+//			//while(ManTT->SYNCBUSY);
+//
+//			//__dsb(15);
+//
+//			ManTT->CTRLA &= ~TCC_ENABLE;
+//
+//			//__dsb(15);
+//
+//			manTB2->ready = true;
+//			trmBusy2 = false;
+//
+//			break;
+//
+//
+//	}; // 	switch (stateManTrans)
+//
+//
+//	ManTT->INTFLAG = TCC_MC0;
+//
+//	ManTT->CTRLBSET = TCC_CMD_UPDATE;
+//
+//	HW::PIOA->BCLR(10);
+//	HW::PIOA->BCLR(11);
+//}
 
-	PIOA->DIRSET = PA10|PA11;
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	ManTT->CTRLA = TCC_SWRST;
+//bool SendManData_2(MTB *mtb)
+//{
+//	if (trmBusy2 || mtb == 0 || mtb->data == 0 || mtb->len == 0)
+//	{
+//		return false;
+//	};
+//
+//	mtb->ready = false;
+//
+//	manTB2 = mtb;
+//
+//	stateMT = 0;
+//
+//	ManTT->CTRLA = MAN_PRESC;
+//	ManTT->WAVE = TCC_WAVEGEN_NFRQ;//|TCC_POL0;
+//	ManTT->DRVCTRL = 0;//TCC_INVEN1;
+//	ManTT->PER = 0xFFFFFF;
+//	ManTT->CC[0] = US2MT(100); 
+//	ManTT->CC[1] = US2MT(100)+trmHalfPeriod*3; 
+//
+//	ManTT->EVCTRL = 0;
+//
+//	ManTT->INTENCLR = ~0;
+//	ManTT->INTENSET = TCC_MC0;
+//	ManTT->INTFLAG = TCC_MC0;
+//
+//	ManTT->CTRLA = MAN_PRESC|TCC_ENABLE;
+//	ManTT->CTRLBSET = TCC_CMD_RETRIGGER;
+//
+//	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_PMUX_E|PORT_WRPMUX|PORT_WRPINCFG|PORT_PMUXEN);
+//	PIO_MANCH->CLR(M1|M2);
+//	PIO_MANCH->DIRSET = M1|M2;
+//
+//	return trmBusy2 = true;
+//}
 
-	while(ManTT->SYNCBUSY);
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	ManTT->DBGCTRL = 1;
-
-	VectorTableExt[MANT_IRQ_2] = ManTrmIRQ_2;
-	CM0::NVIC->CLR_PR(MANT_IRQ_2);
-	CM0::NVIC->SET_ER(MANT_IRQ_2);
-}
+//static void InitManTransmit_2()
+//{
+//	using namespace HW;
+//
+//	HW::GCLK->CLKCTRL = GCLK_ID_TCC0_TCC1 | GCLK_GEN(GEN_MCK) | GCLK_CLKEN;
+//
+//	while (HW::GCLK->STATUS);
+//
+//	PM->APBCMASK |= PM_APBC_TCC0;
+//
+//	PIO_MANCH->CLR(M1|M2);
+//	PIO_MANCH->DIRSET = M1|M2;
+//	PIO_MANCH->SetWRCONFIG(M1|M2, PORT_WRPINCFG);
+//
+//	PIOA->DIRSET = PA10|PA11;
+//
+//	ManTT->CTRLA = TCC_SWRST;
+//
+//	while(ManTT->SYNCBUSY);
+//
+//	ManTT->DBGCTRL = 1;
+//
+//	VectorTableExt[MANT_IRQ_2] = ManTrmIRQ_2;
+//	CM0::NVIC->CLR_PR(MANT_IRQ_2);
+//	CM0::NVIC->SET_ER(MANT_IRQ_2);
+//}
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1560,7 +1588,7 @@ bool SendManData_3(MTB* mtb)
 
 	manTB = mtb;
 
-	stateMT = 0;
+	stateManTrans = 0;
 
 	//trmHalfPeriod = GetTrmBaudRate(mtb->baud);
 	trmHalfPeriod2 = trmHalfPeriod * 2 - 1;
@@ -2215,8 +2243,6 @@ void InitHardware()
 
 	Init_time();
 	Init_I2C();
-	//InitManTransmit();
-	//InitManTransmit_2();
 	InitManTransmit_3();
 	InitManRecieve();
 	InitGen();
@@ -2224,13 +2250,13 @@ void InitHardware()
 
 #ifndef _DEBUG
 
-	//if ((WDT->CTRL & 0x82) == 0)
-	//{
-	//	WDT->CONFIG = 0x0B; // 16384 clock cycles
-	//	WDT->CTRL = 0x82; // Always on, enabled
-	//};
+	if ((WDT->CTRL & (WDT_ALWAYSON|WDT_ENABLE)) == 0)
+	{
+		WDT->CONFIG = WDT_PER_16K;				// 16384 clock cycles
+		WDT->CTRL = WDT_ALWAYSON|WDT_ENABLE;	// Always on, enabled
+	};
 
-	//ResetWDT();
+	ResetWDT();
 
 #endif
 

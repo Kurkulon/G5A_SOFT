@@ -241,75 +241,51 @@ namespace T_HW
 
 	struct S_SYSCTRL
 	{
-		struct SR_Type
-		{
-			u32 XOSCRDY:1;        	/*!< bit:      0  XOSC Ready                         */
-			u32 XOSC32KRDY:1;     	/*!< bit:      1  XOSC32K Ready                      */
-			u32 OSC32KRDY:1;      	/*!< bit:      2  OSC32K Ready                       */
-			u32 OSC8MRDY:1;       	/*!< bit:      3  OSC8M Ready                        */
-			u32 DFLLRDY:1;        	/*!< bit:      4  DFLL Ready                         */
-			u32 DFLLOOB:1;        	/*!< bit:      5  DFLL Out Of Bounds                 */
-			u32 DFLLLCKF:1;       	/*!< bit:      6  DFLL Lock Fine                     */
-			u32 DFLLLCKC:1;       	/*!< bit:      7  DFLL Lock Coarse                   */
-			u32 DFLLRCS:1;        	/*!< bit:      8  DFLL Reference Clock Stopped       */
-			u32 BOD33RDY:1;       	/*!< bit:      9  BOD33 Ready                        */
-			u32 BOD33DET:1;       	/*!< bit:     10  BOD33 Detection                    */
-			u32 B33SRDY:1;        	/*!< bit:     11  BOD33 Synchronization Ready        */
-			u32 :3;               	/*!< bit: 12..14  Reserved                           */
-			u32 DPLLLCKR:1;       	/*!< bit:     15  DPLL Lock Rise                     */
-			u32 DPLLLCKF:1;       	/*!< bit:     16  DPLL Lock Fall                     */
-			u32 DPLLLTO:1;        	/*!< bit:     17  DPLL Lock Timeout                  */
-			u32 :14;              	/*!< bit: 18..31  Reserved                           */
-			
-			operator u32() { return *((u32*)this); }
-			u32 operator=(u32 v) { return *((u32*)this) = v; }
-		};								/*!< Structure used for bit  access                  */
-			
-		volatile SR_Type  		INTENCLR;       /*	(*(RwReg  *)0x40000800U) *< \brief (SYSCTRL) Interrupt Enable Clear */
-		volatile SR_Type		INTENSET;       /*	(*(RwReg  *)0x40000804U) *< \brief (SYSCTRL) Interrupt Enable Set */
-		volatile SR_Type		INTFLAG;       	/*	(*(RwReg  *)0x40000808U) *< \brief (SYSCTRL) Interrupt Flag Status and Clear */
-		volatile const SR_Type	PCLKSR;       	/*	(*(RoReg  *)0x4000080CU) *< \brief (SYSCTRL) Power and Clocks Status */
+		RW32  	INTENCLR;       /*	(*(RwReg  *)0x40000800U) *< \brief (SYSCTRL) Interrupt Enable Clear */
+		RW32	INTENSET;       /*	(*(RwReg  *)0x40000804U) *< \brief (SYSCTRL) Interrupt Enable Set */
+		RW32	INTFLAG;       	/*	(*(RwReg  *)0x40000808U) *< \brief (SYSCTRL) Interrupt Flag Status and Clear */
+		RO32	PCLKSR;       	/*	(*(RoReg  *)0x4000080CU) *< \brief (SYSCTRL) Power and Clocks Status */
 
-		RwReg16	XOSC;       	/*	(*(RwReg16*)0x40000810U) *< \brief (SYSCTRL) External Multipurpose Crystal Oscillator (XOSC) Control */
+		RW16	XOSC;       	/*	(*(RwReg16*)0x40000810U) *< \brief (SYSCTRL) External Multipurpose Crystal Oscillator (XOSC) Control */
 
-		RoReg8	z_reserved1[2];
+		RO8						z_reserved1[2];
 
-		RwReg16	XOSC32K;       	/*	(*(RwReg16*)0x40000814U) *< \brief (SYSCTRL) 32kHz External Crystal Oscillator (XOSC32K) Control */
+		RW16	XOSC32K;       	/*	(*(RwReg16*)0x40000814U) *< \brief (SYSCTRL) 32kHz External Crystal Oscillator (XOSC32K) Control */
 
-		RoReg8	z_reserved2[2];
+		RO8						z_reserved2[2];
 
-		RwReg  	OSC32K;       	/*	(*(RwReg  *)0x40000818U) *< \brief (SYSCTRL) 32kHz Internal Oscillator (OSC32K) Control */
-		RwReg8 	OSCULP32K; 		/*	(*(RwReg8 *)0x4000081CU) *< \brief (SYSCTRL) 32kHz Ultra Low Power Internal Oscillator (OSCULP32K) Control */
+		RW32  	OSC32K;       	/*	(*(RwReg  *)0x40000818U) *< \brief (SYSCTRL) 32kHz Internal Oscillator (OSC32K) Control */
+		RW8 	OSCULP32K; 		/*	(*(RwReg8 *)0x4000081CU) *< \brief (SYSCTRL) 32kHz Ultra Low Power Internal Oscillator (OSCULP32K) Control */
 
-		RoReg8	z_reserved3[3];
+		RO8						z_reserved3[3];
 
-		RwReg  	OSC8M;			/*	(*(RwReg  *)0x40000820U) *< \brief (SYSCTRL) 8MHz Internal Oscillator (OSC8M) Control */
-		RwReg16	DFLLCTRL;		/*	(*(RwReg16*)0x40000824U) *< \brief (SYSCTRL) DFLL48M Control */
+		RW32  	OSC8M;			/*	(*(RwReg  *)0x40000820U) *< \brief (SYSCTRL) 8MHz Internal Oscillator (OSC8M) Control */
+		RW16	DFLLCTRL;		/*	(*(RwReg16*)0x40000824U) *< \brief (SYSCTRL) DFLL48M Control */
 
-		RoReg8	z_reserved4[2];
+		RO8						z_reserved4[2];
 
-		RwReg  	DFLLVAL;		/*	(*(RwReg  *)0x40000828U) *< \brief (SYSCTRL) DFLL48M Value */
-		RwReg  	DFLLMUL;		/*	(*(RwReg  *)0x4000082CU) *< \brief (SYSCTRL) DFLL48M Multiplier */
-		RwReg8 	DFLLSYNC;		/*	(*(RwReg8 *)0x40000830U) *< \brief (SYSCTRL) DFLL48M Synchronization */
+		RW32  	DFLLVAL;		/*	(*(RwReg  *)0x40000828U) *< \brief (SYSCTRL) DFLL48M Value */
+		RW32  	DFLLMUL;		/*	(*(RwReg  *)0x4000082CU) *< \brief (SYSCTRL) DFLL48M Multiplier */
+		RW8 	DFLLSYNC;		/*	(*(RwReg8 *)0x40000830U) *< \brief (SYSCTRL) DFLL48M Synchronization */
 
-		RoReg8	z_reserved5[3];
+		RO8						z_reserved5[3];
 
-		RwReg  	BOD33;			/*	(*(RwReg  *)0x40000834U) *< \brief (SYSCTRL) 3.3V Brown-Out Detector (BOD33) Control */
+		RW32  	BOD33;			/*	(*(RwReg  *)0x40000834U) *< \brief (SYSCTRL) 3.3V Brown-Out Detector (BOD33) Control */
 
-		RoReg	z_reserved6;
+		RO32	z_reserved6;
 
-		RwReg16	VREG;			/*	(*(RwReg  *)0x4000083CU) *< \brief (SYSCTRL) Voltage Regulator System (VREG) Control */
+		RW16	VREG;			/*	(*(RwReg  *)0x4000083CU) *< \brief (SYSCTRL) Voltage Regulator System (VREG) Control */
 
-		RoReg8	z_reserved7[2];
+		RO8						z_reserved7[2];
 
-		RwReg  	VREF;			/*	(*(RwReg  *)0x40000840U) *< \brief (SYSCTRL) Voltage References System (VREF) Control */
-		RwReg8 	DPLLCTRLA;		/*	(*(RwReg8 *)0x40000844U) *< \brief (SYSCTRL) DPLL Control A */
+		RW32  	VREF;			/*	(*(RwReg  *)0x40000840U) *< \brief (SYSCTRL) Voltage References System (VREF) Control */
+		RW8 	DPLLCTRLA;		/*	(*(RwReg8 *)0x40000844U) *< \brief (SYSCTRL) DPLL Control A */
 
-		RoReg8	z_reserved8[3];
+		RO8						z_reserved8[3];
 
-		RwReg  	DPLLRATIO;		/*	(*(RwReg  *)0x40000848U) *< \brief (SYSCTRL) DPLL Ratio Control */
-		RwReg  	DPLLCTRLB;		/*	(*(RwReg  *)0x4000084CU) *< \brief (SYSCTRL) DPLL Control B */
-		RoReg8 	DPLLSTATUS;		/*	(*(RoReg8 *)0x40000850U) *< \brief (SYSCTRL) DPLL Status */
+		RW32  	DPLLRATIO;		/*	(*(RwReg  *)0x40000848U) *< \brief (SYSCTRL) DPLL Ratio Control */
+		RW32  	DPLLCTRLB;		/*	(*(RwReg  *)0x4000084CU) *< \brief (SYSCTRL) DPLL Control B */
+		RO8 	DPLLSTATUS;		/*	(*(RoReg8 *)0x40000850U) *< \brief (SYSCTRL) DPLL Status */
 
 	};
 
@@ -468,12 +444,30 @@ namespace T_HW
 	#define DPLL_LBYPASS			(1<<12)     			/**< \brief (SYSCTRL_DPLLCTRLB) Lock Bypass */
 	#define DPLL_DIV(value)			(((value)&0x7FF)<<16)	/**< \brief (SYSCTRL_DPLLCTRLB) Clock Divider */
 
-	#define DPLLSTATUS_LOCK			(1<<0)  /**< \brief (SYSCTRL_DPLLSTATUS) DPLL Lock Status */
-	#define DPLLSTATUS_CLKRDY		(1<<1)  /**< \brief (SYSCTRL_DPLLSTATUS) Output Clock Ready */
-	#define DPLLSTATUS_ENABLE		(1<<2)  /**< \brief (SYSCTRL_DPLLSTATUS) DPLL Enable */
-	#define DPLLSTATUS_DIV			(1<<3)  /**< \brief (SYSCTRL_DPLLSTATUS) Divider Enable */
+	#define DPLLSTATUS_LOCK			(1<<0)  				/**< \brief (SYSCTRL_DPLLSTATUS) DPLL Lock Status */
+	#define DPLLSTATUS_CLKRDY		(1<<1)  				/**< \brief (SYSCTRL_DPLLSTATUS) Output Clock Ready */
+	#define DPLLSTATUS_ENABLE		(1<<2)  				/**< \brief (SYSCTRL_DPLLSTATUS) DPLL Enable */
+	#define DPLLSTATUS_DIV			(1<<3)  				/**< \brief (SYSCTRL_DPLLSTATUS) Divider Enable */
+
+	#define PCLKSR_XOSCRDY    		(1<<0)  				/**< (SYSCTRL_PCLKSR) XOSC Ready Position */
+	#define PCLKSR_XOSC32KRDY 		(1<<1)  				/**< (SYSCTRL_PCLKSR) XOSC32K Ready Position */
+	#define PCLKSR_OSC32KRDY  		(1<<2)  				/**< (SYSCTRL_PCLKSR) OSC32K Ready Position */
+	#define PCLKSR_OSC8MRDY   		(1<<3)  				/**< (SYSCTRL_PCLKSR) OSC8M Ready Position */
+	#define PCLKSR_DFLLRDY    		(1<<4)  				/**< (SYSCTRL_PCLKSR) DFLL Ready Position */
+	#define PCLKSR_DFLLOOB    		(1<<5)  				/**< (SYSCTRL_PCLKSR) DFLL Out Of Bounds Position */
+	#define PCLKSR_DFLLLCKF   		(1<<6)  				/**< (SYSCTRL_PCLKSR) DFLL Lock Fine Position */
+	#define PCLKSR_DFLLLCKC   		(1<<7)  				/**< (SYSCTRL_PCLKSR) DFLL Lock Coarse Position */
+	#define PCLKSR_DFLLRCS    		(1<<8)  				/**< (SYSCTRL_PCLKSR) DFLL Reference Clock Stopped Position */
+	#define PCLKSR_BOD33RDY   		(1<<9)  				/**< (SYSCTRL_PCLKSR) BOD33 Ready Position */
+	#define PCLKSR_BOD33DET   		(1<<10) 				/**< (SYSCTRL_PCLKSR) BOD33 Detection Position */
+	#define PCLKSR_B33SRDY    		(1<<11) 				/**< (SYSCTRL_PCLKSR) BOD33 Synchronization Ready Position */
+	#define PCLKSR_DPLLLCKR   		(1<<15) 				/**< (SYSCTRL_PCLKSR) DPLL Lock Rise Position */
+	#define PCLKSR_DPLLLCKF   		(1<<16) 				/**< (SYSCTRL_PCLKSR) DPLL Lock Fall Position */
+	#define PCLKSR_DPLLLTO    		(1<<17)					/**< (SYSCTRL_PCLKSR) DPLL Lock Timeout Position */
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	#define WDT_CLEAR_KEY       	(0xA5<<0)                                            /**< (WDT_CLEAR) Clear Key  */
 
 	struct S_WDT
 	{
@@ -489,11 +483,54 @@ namespace T_HW
 		RoReg8	STATUS   ;          /*	(*(RoReg8 *)0x40001007U) *< \brief (WDT) Status */
 		WoReg8	CLEAR    ;          /*	(*(WoReg8 *)0x40001008U) *< \brief (WDT) Clear */
 
-		void Reset() { CLEAR = 0xA5; }
+		void Reset() { CLEAR = WDT_CLEAR_KEY; }
 	};
 
 	/* ========== Instance parameters for WDT peripheral ========== */
-	#define WDT_GCLK_ID                 3
+	
+	#define WDT_GCLK_ID             3
+
+	#define WDT_ENABLE         		(1<<1)                                               /**< (WDT_CTRL) Enable Position */
+	#define WDT_WEN            		(1<<2)                                               /**< (WDT_CTRL) Watchdog Timer Window Mode Enable Position */
+	#define WDT_ALWAYSON       		(1<<7)                                               /**< (WDT_CTRL) Always-On Position */
+	#define	WDT_PER_8           	(0x0<<0)                                             /**< (WDT_CONFIG) 8 clock cycles  */
+	#define	WDT_PER_16          	(0x1<<0)                                             /**< (WDT_CONFIG) 16 clock cycles  */
+	#define	WDT_PER_32          	(0x2<<0)                                             /**< (WDT_CONFIG) 32 clock cycles  */
+	#define	WDT_PER_64          	(0x3<<0)                                             /**< (WDT_CONFIG) 64 clock cycles  */
+	#define	WDT_PER_128         	(0x4<<0)                                             /**< (WDT_CONFIG) 128 clock cycles  */
+	#define	WDT_PER_256         	(0x5<<0)                                             /**< (WDT_CONFIG) 256 clock cycles  */
+	#define	WDT_PER_512         	(0x6<<0)                                             /**< (WDT_CONFIG) 512 clock cycles  */
+	#define	WDT_PER_1K          	(0x7<<0)                                             /**< (WDT_CONFIG) 1024 clock cycles  */
+	#define	WDT_PER_2K          	(0x8<<0)                                             /**< (WDT_CONFIG) 2048 clock cycles  */
+	#define	WDT_PER_4K          	(0x9<<0)                                             /**< (WDT_CONFIG) 4096 clock cycles  */
+	#define	WDT_PER_8K          	(0xA<<0)                                             /**< (WDT_CONFIG) 8192 clock cycles  */
+	#define	WDT_PER_16K         	(0xB<<0)                                             /**< (WDT_CONFIG) 16384 clock cycles  */
+	#define	WDT_WINDOW_8        	(0x0<<4)                                             /**< (WDT_CONFIG) 8 clock cycles  */
+	#define	WDT_WINDOW_16       	(0x1<<4)                                             /**< (WDT_CONFIG) 16 clock cycles  */
+	#define	WDT_WINDOW_32       	(0x2<<4)                                             /**< (WDT_CONFIG) 32 clock cycles  */
+	#define	WDT_WINDOW_64       	(0x3<<4)                                             /**< (WDT_CONFIG) 64 clock cycles  */
+	#define	WDT_WINDOW_128      	(0x4<<4)                                             /**< (WDT_CONFIG) 128 clock cycles  */
+	#define	WDT_WINDOW_256      	(0x5<<4)                                             /**< (WDT_CONFIG) 256 clock cycles  */
+	#define	WDT_WINDOW_512      	(0x6<<4)                                             /**< (WDT_CONFIG) 512 clock cycles  */
+	#define	WDT_WINDOW_1K       	(0x7<<4)                                             /**< (WDT_CONFIG) 1024 clock cycles  */
+	#define	WDT_WINDOW_2K       	(0x8<<4)                                             /**< (WDT_CONFIG) 2048 clock cycles  */
+	#define	WDT_WINDOW_4K       	(0x9<<4)                                             /**< (WDT_CONFIG) 4096 clock cycles  */
+	#define	WDT_WINDOW_8K       	(0xA<<4)                                             /**< (WDT_CONFIG) 8192 clock cycles  */
+	#define	WDT_WINDOW_16K      	(0xB<<4)                                             /**< (WDT_CONFIG) 16384 clock cycles  */
+	#define WDT_EWOFFSET_8      	(0x0<<0)                                             /**< (WDT_EWCTRL) 8 clock cycles  */
+	#define WDT_EWOFFSET_16     	(0x1<<0)                                             /**< (WDT_EWCTRL) 16 clock cycles  */
+	#define WDT_EWOFFSET_32     	(0x2<<0)                                             /**< (WDT_EWCTRL) 32 clock cycles  */
+	#define WDT_EWOFFSET_64     	(0x3<<0)                                             /**< (WDT_EWCTRL) 64 clock cycles  */
+	#define WDT_EWOFFSET_128    	(0x4<<0)                                             /**< (WDT_EWCTRL) 128 clock cycles  */
+	#define WDT_EWOFFSET_256    	(0x5<<0)                                             /**< (WDT_EWCTRL) 256 clock cycles  */
+	#define WDT_EWOFFSET_512    	(0x6<<0)                                             /**< (WDT_EWCTRL) 512 clock cycles  */
+	#define WDT_EWOFFSET_1K     	(0x7<<0)                                             /**< (WDT_EWCTRL) 1024 clock cycles  */
+	#define WDT_EWOFFSET_2K     	(0x8<<0)                                             /**< (WDT_EWCTRL) 2048 clock cycles  */
+	#define WDT_EWOFFSET_4K     	(0x9<<0)                                             /**< (WDT_EWCTRL) 4096 clock cycles  */
+	#define WDT_EWOFFSET_8K     	(0xA<<0)                                             /**< (WDT_EWCTRL) 8192 clock cycles  */
+	#define WDT_EWOFFSET_16K    	(0xB<<0)                                             /**< (WDT_EWCTRL) 16384 clock cycles  */
+	#define WDT_EW              	(1<<0)                                               /**< (WDT_INTENCLR) Early Warning Interrupt Enable Position */
+	#define WDT_SYNCBUSY        	(1<<7)                                               /**< (WDT_STATUS) Synchronization Busy Position */
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
