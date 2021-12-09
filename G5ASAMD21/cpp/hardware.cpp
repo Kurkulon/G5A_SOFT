@@ -16,7 +16,7 @@
 
 #define	B_DMACH			0
 #define	M_DMACH			1
-//#define	COM2_DMACH		2
+#define	I2C_DMACH		2
 //#define	COM3_DMACH		3
 //#define	SPI_DMACH_TX	4
 //#define	SPI_DMACH_RX	5
@@ -29,6 +29,8 @@
 #define PIN_SCL			23 
 #define SDA				(1<<PIN_SDA) 
 #define SCL				(1<<PIN_SCL) 
+#define I2C_TRIGSRC_RX	DMCH_TRIGSRC_SERCOM3_RX
+#define I2C_TRIGSRC_TX	DMCH_TRIGSRC_SERCOM3_TX
 
 __align(16) T_HW::DMADESC 		DmaTable[12];
 __align(16) T_HW::DMADESC 		DmaWRB[12];
@@ -1938,127 +1940,517 @@ bool RcvManData(MRB *mrb)
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static byte *twi_wrPtr = 0;
-static byte *twi_rdPtr = 0;
-static u16 twi_wrCount = 0;
-static u16 twi_rdCount = 0;
-static byte *twi_wrPtr2 = 0;
-static u16 twi_wrCount2 = 0;
-static byte twi_adr = 0;
-static DSCI2C* twi_dsc = 0;
+List<DSCI2C>	i2c_ReqList;
+DSCI2C*			i2c_dsc = 0;
+
+//static byte *twi_wrPtr = 0;
+//static byte *twi_rdPtr = 0;
+//static u16 twi_wrCount = 0;
+//static u16 twi_rdCount = 0;
+//static byte *twi_wrPtr2 = 0;
+//static u16 twi_wrCount2 = 0;
+//static byte twi_adr = 0;
+//static DSCI2C* twi_dsc = 0;
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-__irq void Handler_I2C()
+//__irq void Handler_I2C()
+//{
+//	using namespace HW;
+//
+//	byte state = I2C->INTFLAG;
+//
+//	if(state & I2C_SB) // Received data is available
+//	{
+//		*twi_rdPtr++ = I2C->DATA; // receive data
+//
+//		twi_rdCount--;
+//
+//		I2C->CTRLB |= (twi_rdCount > 0) ? I2C_CMD_2 : I2C_CMD_STOP; 
+//	}
+//	else if(state & I2C_MB) // Data can be transmitted 
+//	{
+//		if (twi_wrCount > 0)
+//		{
+//			I2C->DATA = *twi_wrPtr++;
+//
+//			twi_wrCount--;
+//
+//			if(twi_wrCount == 0 && twi_wrCount2 != 0)
+//			{
+//				twi_wrPtr = twi_wrPtr2;
+//				twi_wrCount = twi_wrCount2;
+//				twi_wrCount2 = 0;
+//			};
+//		}
+//		else if (twi_rdCount > 0)
+//		{
+//			I2C->ADDR = (twi_adr << 1) | 1;
+//		}
+//		else
+//		{
+//			I2C->CTRLB |= I2C_CMD_STOP;
+//		};
+//	}
+//	else
+//	{
+//		twi_rdCount = 0;
+//		twi_wrCount = 0;
+//
+//		I2C->CTRLB |= I2C_CMD_STOP;
+//	};
+//}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//bool Write_I2C(DSCI2C *d)
+//{
+//	using namespace HW;
+//
+//	if (twi_dsc != 0 || d == 0) { return false; };
+//	if ((d->wdata == 0 || d->wlen == 0) && (d->rdata == 0 || d->rlen == 0)) { return false; }
+//
+////	smask = 1<<13;
+//	twi_dsc = d;
+//
+//	VectorTableExt[SERCOM3_IRQ] = Handler_I2C;
+//	CM0::NVIC->ICPR[0] = 1 << SERCOM3_IRQ;
+//	CM0::NVIC->ISER[0] = 1 << SERCOM3_IRQ;
+//
+//	twi_dsc->ready = false;
+//
+//	twi_wrPtr = (byte*)twi_dsc->wdata;	
+//	twi_rdPtr = (byte*)twi_dsc->rdata;	
+//	twi_wrPtr2 = (byte*)twi_dsc->wdata2;	
+//	twi_wrCount = twi_dsc->wlen;
+//	twi_wrCount2 = twi_dsc->wlen2;
+//	twi_rdCount = twi_dsc->rlen;
+//	twi_adr = twi_dsc->adr;
+//
+//	if (twi_wrPtr2 == 0) twi_wrCount2 = 0;
+//
+//	__disable_irq();
+//
+//	I2C->STATUS.BUSSTATE = BUSSTATE_IDLE;
+//
+//	I2C->INTFLAG = ~0;
+//	I2C->INTENSET = I2C_MB|I2C_SB;
+//
+//	I2C->ADDR = (twi_dsc->adr << 1) | ((twi_wrCount == 0) ? 1 : 0);
+//		
+//	__enable_irq();
+//
+//	return true;
+//}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//bool Check_I2C_ready()
+//{
+//	if (twi_dsc == 0)
+//	{ 
+//		return true; 
+//	}
+//	else if (I2C->STATUS.BUSSTATE == BUSSTATE_IDLE)
+//	{
+//		twi_dsc->ready = true;
+//		twi_dsc = 0;
+//
+//		return true;
+//	}
+//	else
+//	{
+//		return false;
+//	};
+//}
+
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void Upadte_I2C()
 {
-	using namespace HW;
+	enum STATE { WAIT = 0, WRITE, READ, STOP };
 
-	byte state = I2C->INTFLAG;
+	static STATE state = WAIT;
+	static byte *wrPtr = 0;
+	static byte *rdPtr = 0;
+	static u16 	wrCount = 0;
+	static u16 	rdCount = 0;
+	static byte *wrPtr2 = 0;
+	static u16	wrCount2 = 0;
+	static byte adr = 0;
 
-	if(state & I2C_SB) // Received data is available
+	switch (state)
 	{
-		*twi_rdPtr++ = I2C->DATA; // receive data
+		case WAIT:
 
-		twi_rdCount--;
+			i2c_dsc = i2c_ReqList.Get();
 
-		I2C->CTRLB |= (twi_rdCount > 0) ? I2C_CMD_2 : I2C_CMD_STOP; 
-	}
-	else if(state & I2C_MB) // Data can be transmitted 
-	{
-		if (twi_wrCount > 0)
-		{
-			I2C->DATA = *twi_wrPtr++;
-
-			twi_wrCount--;
-
-			if(twi_wrCount == 0 && twi_wrCount2 != 0)
+			if (i2c_dsc != 0)
 			{
-				twi_wrPtr = twi_wrPtr2;
-				twi_wrCount = twi_wrCount2;
-				twi_wrCount2 = 0;
-			};
-		}
-		else if (twi_rdCount > 0)
-		{
-			I2C->ADDR = (twi_adr << 1) | 1;
-		}
-		else
-		{
-			I2C->CTRLB |= I2C_CMD_STOP;
-		};
-	}
-	else
-	{
-		twi_rdCount = 0;
-		twi_wrCount = 0;
+				DSCI2C &dsc = *i2c_dsc;
 
-		I2C->CTRLB |= I2C_CMD_STOP;
+				dsc.ready = false;
+				dsc.ack = false;
+
+				wrPtr = (byte*)dsc.wdata;	
+				rdPtr = (byte*)dsc.rdata;	
+				wrPtr2 = (byte*)dsc.wdata2;	
+				wrCount = dsc.wlen;
+				wrCount2 = dsc.wlen2;
+				rdCount = dsc.rlen;
+				adr = dsc.adr;
+
+				if (wrPtr2 == 0) wrCount2 = 0;
+
+				I2C->CTRLB = I2C_SMEN;
+				I2C->STATUS.BUSSTATE = BUSSTATE_IDLE;
+
+				I2C->INTFLAG = ~0;
+
+				if (wrCount == 0)
+				{
+					I2C->ADDR = (adr << 1) | 1;
+					state = READ; 
+				}
+				else
+				{
+					I2C->ADDR = (adr << 1);
+					state = WRITE; 
+				};
+			};
+
+			break;
+
+		case WRITE:
+
+			if(I2C->INTFLAG & I2C_MB) // Data can be transmitted 
+			{
+				DSCI2C &dsc = *i2c_dsc;
+
+				dsc.ack = true;
+
+				if (wrCount > 0)
+				{
+					I2C->DATA = *wrPtr++;
+
+					wrCount--;
+
+					if(wrCount == 0 && wrCount2 != 0)
+					{
+						wrPtr = wrPtr2;
+						wrCount = wrCount2;
+						wrCount2 = 0;
+					};
+				}
+				else if (rdCount > 0)
+				{
+					I2C->ADDR = (adr << 1) | 1;
+	
+					state = READ; 
+				}
+				else
+				{
+					I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP;
+					
+					state = STOP; 
+				};
+			}
+			else if(I2C->INTFLAG & I2C_ERROR)
+			{
+				I2C->CTRLB = I2C_SMEN|I2C_CMD_STOP;
+				
+				state = STOP; 
+			};
+
+			break;
+
+		case READ:
+
+			if(I2C->INTFLAG & I2C_SB) // Received data is available
+			{
+				DSCI2C &dsc = *i2c_dsc;
+
+				dsc.ack = true;
+
+				*rdPtr++ = I2C->DATA; // receive data
+
+				rdCount--;
+
+				//if (rdCount == 1) I2C->CTRLB = I2C_SMEN|I2C_ACKACT;
+
+				if (rdCount > 0)
+				{
+					I2C->CTRLB = I2C_SMEN|I2C_CMD_2; 
+				}
+				else
+				{
+					I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP; 
+					state = STOP; 
+				};
+			}
+			else if(I2C->INTFLAG & I2C_ERROR)
+			{
+				I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP;
+				
+				state = STOP; 
+			};
+
+			break;
+
+		case STOP:
+
+			if (I2C->STATUS.BUSSTATE == BUSSTATE_IDLE)
+			{
+				i2c_dsc->ready = true;
+				
+				i2c_dsc = 0;
+				
+				I2C->CTRLB = I2C_SMEN;
+
+				state = WAIT; 
+			}
+			else if (I2C->SYNCBUSY == 0)
+			{
+				I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP;
+			};
+
+			break;
 	};
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-bool Write_I2C(DSCI2C *d)
+static void Upadte_I2C_DMA()
+{
+	enum STATE { WAIT = 0, WRITE, READ, STOP };
+
+	static STATE state = WAIT;
+	static byte *wrPtr = 0;
+	static byte *rdPtr = 0;
+	static u16 	wrCount = 0;
+	static u16 	rdCount = 0;
+	static byte *wrPtr2 = 0;
+	static u16	wrCount2 = 0;
+	static byte adr = 0;
+	static __align(16) T_HW::DMADESC wr_dmadsc;
+
+	switch (state)
+	{
+		case WAIT:
+
+			i2c_dsc = i2c_ReqList.Get();
+
+			if (i2c_dsc != 0)
+			{
+				DSCI2C &dsc = *i2c_dsc;
+
+				dsc.ready = false;
+				dsc.ack = false;
+
+				wrPtr = (byte*)dsc.wdata;	
+				rdPtr = (byte*)dsc.rdata;	
+				wrPtr2 = (byte*)dsc.wdata2;	
+				wrCount = dsc.wlen;
+				wrCount2 = dsc.wlen2;
+				rdCount = dsc.rlen;
+				adr = dsc.adr;
+
+				if (wrPtr2 == 0) wrCount2 = 0;
+
+				I2C->CTRLB = I2C_SMEN;
+				I2C->STATUS.BUSSTATE = BUSSTATE_IDLE;
+
+				I2C->INTFLAG = ~0;
+
+				T_HW::DMADESC &dmadsc = DmaTable[I2C_DMACH];
+
+				if (wrCount == 0)
+				{
+					dmadsc.SRCADDR	= &I2C->DATA;
+					dmadsc.DSTADDR	= rdPtr + rdCount;
+					dmadsc.DESCADDR = 0;
+					dmadsc.BTCNT	= rdCount;
+					dmadsc.BTCTRL	= DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_DSTINC;
+
+					__disable_irq();
+
+					HW::DMAC->CHID = I2C_DMACH;
+					HW::DMAC->CHCTRLB = DMCH_TRIGACT_BEAT|I2C_TRIGSRC_RX;
+					HW::DMAC->CHINTENCLR = ~0;
+					HW::DMAC->CHINTFLAG = ~0;
+					HW::DMAC->CHCTRLA = DMCH_ENABLE;
+
+					__enable_irq();
+
+					I2C->ADDR = (adr << 1) | 1;
+					state = READ; 
+				}
+				else
+				{
+					dmadsc.SRCADDR	= wrPtr + wrCount;
+					dmadsc.DSTADDR	= &I2C->DATA;
+					dmadsc.BTCNT	= wrCount;
+					dmadsc.BTCTRL	= DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_SRCINC;
+
+					if (wrCount2 == 0)
+					{
+						dmadsc.DESCADDR = 0;
+					}
+					else
+					{
+						dmadsc.SRCADDR	= wrPtr2 + wrCount2;
+						dmadsc.DSTADDR	= &I2C->DATA;
+						dmadsc.BTCNT	= wrCount2;
+						dmadsc.BTCTRL	= DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_SRCINC;
+						dmadsc.DESCADDR = &wr_dmadsc;
+					};
+
+					__disable_irq();
+
+					HW::DMAC->CHID = I2C_DMACH;
+					HW::DMAC->CHCTRLB = DMCH_TRIGACT_BEAT|I2C_TRIGSRC_TX;
+					HW::DMAC->CHINTENCLR = ~0;
+					HW::DMAC->CHINTFLAG = ~0;
+					HW::DMAC->CHCTRLA = DMCH_ENABLE;
+
+					__enable_irq();
+
+					I2C->ADDR = (adr << 1);
+					state = WRITE; 
+				};
+			};
+
+			break;
+
+		case WRITE:
+
+			if((I2C->INTFLAG & I2C_ERROR) || I2C->STATUS.RXNACK)
+			{
+				I2C->CTRLB = I2C_SMEN|I2C_CMD_STOP;
+				
+				state = STOP; 
+			}
+			else
+			{
+				DSCI2C &dsc = *i2c_dsc;
+
+				__disable_irq();
+
+				HW::DMAC->CHID = I2C_DMACH;
+
+				bool c = ((HW::DMAC->CHCTRLA & DMCH_ENABLE) == 0 || (HW::DMAC->CHINTFLAG & DMCH_TCMPL)) && (I2C->INTFLAG & I2C_MB);
+				
+				__enable_irq();
+
+				if (c)
+				{
+					dsc.ack = true;
+
+					if (rdCount > 0)
+					{
+						T_HW::DMADESC &dmadsc = DmaTable[I2C_DMACH];
+
+						dmadsc.SRCADDR	= &I2C->DATA;
+						dmadsc.DSTADDR	= rdPtr + rdCount;
+						dmadsc.DESCADDR = 0;
+						dmadsc.BTCNT	= rdCount;
+						dmadsc.BTCTRL	= DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_DSTINC;
+
+						__disable_irq();
+
+						HW::DMAC->CHID = I2C_DMACH;
+						HW::DMAC->CHCTRLB = DMCH_TRIGACT_BEAT|I2C_TRIGSRC_RX;
+						HW::DMAC->CHINTENCLR = ~0;
+						HW::DMAC->CHINTFLAG = ~0;
+						HW::DMAC->CHCTRLA = DMCH_ENABLE;
+
+						__enable_irq();
+
+						I2C->ADDR = ((rdCount <= 255) ? (I2C_LEN(rdCount)|I2C_LENEN) : 0) | (adr << 1) | 1;
+		
+						state = READ; 
+					}
+					else
+					{
+						I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP;
+						
+						state = STOP; 
+					};
+				};
+			};
+
+			break;
+
+		case READ:
+
+			if((I2C->INTFLAG & I2C_ERROR) || I2C->STATUS.RXNACK)
+			{
+				I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP;
+				
+				state = STOP; 
+			}
+			else
+			{
+				DSCI2C &dsc = *i2c_dsc;
+
+				__disable_irq();
+
+				HW::DMAC->CHID = I2C_DMACH;
+
+				bool c = (HW::DMAC->CHCTRLA & DMCH_ENABLE) == 0 || (HW::DMAC->CHINTFLAG & DMCH_TCMPL);
+				
+				__enable_irq();
+
+				if (c)
+				{
+					dsc.ack = true;
+
+					I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP;
+						
+					state = STOP; 
+				};
+			};
+
+			break;
+
+		case STOP:
+
+			if (I2C->STATUS.BUSSTATE == BUSSTATE_IDLE)
+			{
+				i2c_dsc->ready = true;
+				
+				i2c_dsc = 0;
+				
+				I2C->CTRLB = I2C_SMEN;
+
+				state = WAIT; 
+			}
+			else if (I2C->SYNCBUSY == 0)
+			{
+				I2C->CTRLB = I2C_SMEN|I2C_ACKACT|I2C_CMD_STOP;
+			};
+
+			break;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool I2C_AddRequest(DSCI2C *d)
 {
 	using namespace HW;
 
-	if (twi_dsc != 0 || d == 0) { return false; };
+	if (d == 0) { return false; };
 	if ((d->wdata == 0 || d->wlen == 0) && (d->rdata == 0 || d->rlen == 0)) { return false; }
 
-//	smask = 1<<13;
-	twi_dsc = d;
 
-	VectorTableExt[SERCOM3_IRQ] = Handler_I2C;
-	CM0::NVIC->ICPR[0] = 1 << SERCOM3_IRQ;
-	CM0::NVIC->ISER[0] = 1 << SERCOM3_IRQ;
+	d->ready = false;
 
-	twi_dsc->ready = false;
-
-	twi_wrPtr = (byte*)twi_dsc->wdata;	
-	twi_rdPtr = (byte*)twi_dsc->rdata;	
-	twi_wrPtr2 = (byte*)twi_dsc->wdata2;	
-	twi_wrCount = twi_dsc->wlen;
-	twi_wrCount2 = twi_dsc->wlen2;
-	twi_rdCount = twi_dsc->rlen;
-	twi_adr = twi_dsc->adr;
-
-	if (twi_wrPtr2 == 0) twi_wrCount2 = 0;
-
-	__disable_irq();
-
-	I2C->STATUS.BUSSTATE = BUSSTATE_IDLE;
-
-	I2C->INTFLAG = ~0;
-	I2C->INTENSET = I2C_MB|I2C_SB;
-
-	I2C->ADDR = (twi_dsc->adr << 1) | ((twi_wrCount == 0) ? 1 : 0);
-		
-	__enable_irq();
+	i2c_ReqList.Add(d);
 
 	return true;
 }
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-bool Check_I2C_ready()
-{
-	if (twi_dsc == 0)
-	{ 
-		return true; 
-	}
-	else if (I2C->STATUS.BUSSTATE == BUSSTATE_IDLE)
-	{
-		twi_dsc->ready = true;
-		twi_dsc = 0;
-
-		return true;
-	}
-	else
-	{
-		return false;
-	};
-}
-
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -2066,8 +2458,8 @@ bool Init_I2C()
 {
 	using namespace HW;
 
-	HW::GCLK->CLKCTRL = GCLK_ID_SERCOM3_CORE|GCLK_GEN(3)|GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_SERCOMX_SLOW|GCLK_GEN(2)|GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_SERCOM3_CORE|GCLK_GEN(GEN_MCK)|GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_SERCOMX_SLOW|GCLK_GEN(GEN_32K)|GCLK_CLKEN;
 
 	PM->APBCMASK |= PM_APBC_SERCOM3;
 
@@ -2084,8 +2476,8 @@ bool Init_I2C()
 	I2C->CTRLA = SERCOM_MODE_I2C_MASTER;
 
 	I2C->CTRLA = SERCOM_MODE_I2C_MASTER|I2C_INACTOUT_205US|I2C_SPEED_SM;
-	I2C->CTRLB = 0;
-	I2C->BAUD = 0x0F0C;
+	I2C->CTRLB = I2C_SMEN;
+	I2C->BAUD = 0x3030;
 
 	I2C->CTRLA |= I2C_ENABLE;
 
@@ -2094,9 +2486,9 @@ bool Init_I2C()
 	I2C->STATUS = 0;
 	I2C->STATUS.BUSSTATE = BUSSTATE_IDLE;
 
-	VectorTableExt[SERCOM3_IRQ] = Handler_I2C;
-	CM0::NVIC->ICPR[0] = 1 << SERCOM3_IRQ;
-	CM0::NVIC->ISER[0] = 1 << SERCOM3_IRQ;
+	//VectorTableExt[SERCOM3_IRQ] = Handler_I2C;
+	//CM0::NVIC->ICPR[0] = 1 << SERCOM3_IRQ;
+	//CM0::NVIC->ISER[0] = 1 << SERCOM3_IRQ;
 
 	return true;
 }
@@ -2279,6 +2671,7 @@ void UpdateHardware()
 	{
 		CALL( UpdateGenTime()		);
 		CALL( Update_AD5312();		);
+		CALL( Upadte_I2C_DMA();		);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;

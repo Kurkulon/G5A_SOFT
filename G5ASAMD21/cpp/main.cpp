@@ -361,7 +361,7 @@ static void UpdateTemp()
 				dsc.wdata2 = 0;
 				dsc.wlen2 = 0;
 
-				if (Write_I2C(&dsc))
+				if (I2C_AddRequest(&dsc))
 				{
 					i++;
 				};
@@ -371,10 +371,13 @@ static void UpdateTemp()
 
 		case 1:
 
-			if (Check_I2C_ready())
+			if (dsc.ready)
 			{
-				i32 t = (i16)ReverseWord(rbuf);
-				temp = (t * 10 + 64) / 128;
+				if (dsc.ack)
+				{
+					i32 t = (i16)ReverseWord(rbuf);
+					temp = (t * 10 + 64) / 128;
+				};
 
 				i = 0;
 			};
@@ -393,7 +396,7 @@ static void UpdateTemp()
 			dsc.rlen = 0;
 			dsc.adr = 0x50;
 
-			if (Write_I2C(&dsc))
+			if (I2C_AddRequest(&dsc))
 			{
 				tm.Reset();
 
@@ -404,7 +407,7 @@ static void UpdateTemp()
 
 		case 3:
 
-			if (Check_I2C_ready())
+			if (dsc.ready)
 			{
 				tm.Reset();
 
@@ -446,7 +449,7 @@ static void UpdateTemp()
 			dsc.rlen = romRdLen;
 			dsc.adr = 0x50;
 
-			if (Read_I2C(&dsc))
+			if (I2C_AddRequest(&dsc))
 			{
 				tm.Reset();
 
@@ -457,7 +460,7 @@ static void UpdateTemp()
 
 		case 6:
 
-			if (Check_I2C_ready())
+			if (dsc.ready)
 			{
 				eepromReadLen = 0;
 

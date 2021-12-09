@@ -90,21 +90,24 @@ extern u32 b_ts[];
 
 struct DSCI2C
 {
-	void*	wdata;
-	void*	rdata;
-	void*	wdata2;
-	u16		wlen;
-	u16		wlen2;
-	u16		rlen;
-	byte	adr;
-	bool	ready;
+	DSCI2C			*next;
+	void			*wdata;
+	void			*rdata;
+	void			*wdata2;
+	u16				wlen;
+	u16				wlen2;
+	u16				rlen;
+	byte			adr;
+	volatile bool	ready;
+	volatile bool	ack;
 };
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-extern bool Write_I2C(DSCI2C *d);
-inline bool Read_I2C(DSCI2C *d) { return Write_I2C(d); }
-extern bool Check_I2C_ready();
+//extern bool Write_I2C(DSCI2C *d);
+//inline bool Read_I2C(DSCI2C *d) { return Write_I2C(d); }
+//extern bool Check_I2C_ready();
+extern bool I2C_AddRequest(DSCI2C *d);
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
