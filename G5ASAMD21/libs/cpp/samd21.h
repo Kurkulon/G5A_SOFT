@@ -890,6 +890,8 @@ namespace T_HW
 	#define SPI_CPHA   			(1<<28)   	/**< \brief (SERCOM_SPI_CTRLA) Clock Phase */
 	#define SPI_CPOL   			(1<<29)   	/**< \brief (SERCOM_SPI_CTRLA) Clock Polarity */
 	#define SPI_DORD   			(1<<30)   	/**< \brief (SERCOM_SPI_CTRLA) Data Order */
+	#define SPI_DORD_MSB		(0<<30)   	/**< \brief (SERCOM_SPI_CTRLA) Data Order */
+	#define SPI_DORD_LSB		(1<<30)   	/**< \brief (SERCOM_SPI_CTRLA) Data Order */
 
 	#define SPI_CHSIZE_8BIT		(0<<0)		/**< \brief (SERCOM_SPI_CTRLB) Character Size */
 	#define SPI_CHSIZE_9BIT		(1<<0)

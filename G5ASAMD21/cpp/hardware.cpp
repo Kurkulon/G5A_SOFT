@@ -36,9 +36,7 @@ __align(16) T_HW::DMADESC 		DmaTable[12];
 __align(16) T_HW::DMADESC 		DmaWRB[12];
 
 #define SPI							HW::SPI5
-#define PIO_SCLK					HW::PIOB
-#define PIO_DATA					HW::PIOB
-//#define PIO_MISO					HW::PIOA
+#define PIO_SPI						HW::PIOB
 #define PIO_SYNC					HW::PIOA
 
 #define PIN_SCLK					17
@@ -2459,15 +2457,11 @@ bool Init_I2C()
 	using namespace HW;
 
 	HW::GCLK->CLKCTRL = GCLK_ID_SERCOM3_CORE|GCLK_GEN(GEN_MCK)|GCLK_CLKEN;
-	HW::GCLK->CLKCTRL = GCLK_ID_SERCOMX_SLOW|GCLK_GEN(GEN_32K)|GCLK_CLKEN;
 
 	PM->APBCMASK |= PM_APBC_SERCOM3;
 
-	HW::PIOA->PMUX[22/2] = 0x22;
-	HW::PIOA->PINCFG[22] = 0x01;
-	HW::PIOA->PINCFG[23] = 0x01;
-
-	HW::PIOA->DIRSET = (1<<22)|(1<<23);
+	PIO_I2C->SetWRCONFIG(SCL|SDA, PORT_PMUX_C | PORT_PMUXEN | PORT_WRPMUX | PORT_PULLEN | PORT_WRPINCFG);
+	PIO_I2C->SET(SCL|SDA);
 
 	I2C->CTRLA = I2C_SWRST;
 
@@ -2538,31 +2532,13 @@ bool EEPROM_Verify(byte *src, byte *dst, u16 size)
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+u16 ad5312_data[2] = { 2048, 2048 };
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 void AD5312_Set(byte channel, u16 dac)
 {
-	//u16 data = ((u16)channel << 15) | (dac << 2);
-
-	//PORTC.OUTCLR = PIN4_bm; //PIN7_bm;
-
-	//for(byte i = 0; i < 16; i++)
-	//{
-	//	if(data & 0x8000)
-	//	{
-	//		PORTC.OUTSET = PIN5_bm;
-	//	}
-	//	else
-	//	{
-	//		PORTC.OUTCLR = PIN5_bm;
-	//	};
-
-	//	PORTC.OUTSET = PIN7_bm; //PIN6_bm;
-
-	//	data <<= 1;
-
-	//	PORTC.OUTCLR = PIN7_bm; //PIN6_bm;
-	//}
-
-	//PORTC.OUTSET = PIN4_bm; //PIN7_bm;
+	ad5312_data[channel&1] = dac & 0x3FF;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2576,21 +2552,13 @@ static void Init_AD5312()
 
 	PM->APBCMASK |= PM_APBC_SERCOM5;
 
-	//HW::PIOB->PMUX[16/2] = 0x22;
+	PIO_SPI->SetWRCONFIG(SCLK|MOSI, PORT_PMUX_C|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX);
 
-	//HW::PIOB->PINCFG[16] = 0x01;
-	//HW::PIOB->PINCFG[17] = 0x01;
-	HW::PIOB->SetWRCONFIG(D_FIRE|(1<<17)|SYNC, PORT_PMUX_C|PORT_WRPINCFG|PORT_PMUXEN|PORT_WRPMUX);
+	PIO_SYNC->DIRSET = SYNC;
 
+	SPI->CTRLA = SERCOM_MODE_SPI_MASTER|SPI_FORM_SPI|SPI_DIPO(0)|SPI_DOPO(0)|SPI_CPHA|SPI_DORD_MSB;
 
-	//HW::PIOA->SetPinMux(20, 2);
-	//HW::PIOA->PINCFG[20] = 1;
-
-	HW::PIOA->DIRSET = SYNC;
-
-	SPI->CTRLA = SERCOM_MODE_SPI_MASTER|SPI_CPHA|SPI_CPOL|SPI_FORM_SPI|SPI_DIPO(0)|SPI_DOPO(0);
-
-	SPI->CTRLB = SPI_CHSIZE_8BIT|SPI_MSSEN;
+	SPI->CTRLB = SPI_CHSIZE_8BIT;
 	SPI->BAUD = 23;
 
 	SPI->CTRLA |= SPI_ENABLE;
@@ -2602,17 +2570,58 @@ static void Init_AD5312()
 
 static void Update_AD5312()
 {
+	static byte state = 0;
+	static byte chn = 0;
+	static U16u data(0);
+
 	static TM32 tm;
 
-	if (tm.Check(10))
+	switch (state)
 	{
-		if (SPI->INTFLAG & SPI_DRE)
-		{
-			SPI->DATA = 0x55;
-		};
-	};
+		case 0:
 
+			if (tm.Check(101))
+			{
+				data.w = (chn<<15) | (ad5312_data[chn] << 2); chn = (chn + 1) & 1;
+
+				PIO_SYNC->CLR(SYNC);
+
+				SPI->DATA = data.b[1];
+
+				while ((SPI->INTFLAG & SPI_DRE) == 0);
+
+				SPI->DATA = data.b[0];
+
+				state++;
+			};
+
+			break;
+
+		case 1:
+
+			if (SPI->INTFLAG & SPI_DRE)
+			{
+				//SPI->DATA = data.b[0];
+
+				state++;
+			};
+
+			break;
+
+		case 2:
+
+			if (SPI->INTFLAG & SPI_TXC)
+			{
+				PIO_SYNC->SET(SYNC);
+
+				state = 0;
+			};
+
+			break;
+
+	};
 }
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void InitHardware()
@@ -2623,8 +2632,8 @@ void InitHardware()
 
 //	InitVectorTable();
 
-	HW::GCLK->CLKCTRL = GCLK_ID_EIC		|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN;
-	//HW::GCLK->CLKCTRL = GCLK_ID_EVSYS_0	|	GCLK_GEN(GEN_MCK)	|	GCLK_CLKEN; // Manchester reciever
+	HW::GCLK->CLKCTRL = GCLK_ID_EIC				| GCLK_GEN(GEN_MCK) | GCLK_CLKEN;
+	HW::GCLK->CLKCTRL = GCLK_ID_SERCOMX_SLOW	| GCLK_GEN(GEN_32K) | GCLK_CLKEN;
 
 	PM->APBAMASK |= PM_APBA_EIC;
 	PM->APBCMASK |= PM_APBC_EVSYS;
