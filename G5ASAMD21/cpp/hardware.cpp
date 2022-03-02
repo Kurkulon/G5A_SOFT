@@ -301,7 +301,7 @@ void SetGenFreq(u16 freq)
 
 	gen_period = ((MCK / GEN_DIV) + (gen_freq>>1)) / gen_freq - 1;
 
-	GenTCC->PER = gen_period;
+	GenTCC->PERB = gen_period;
 	GenTCC->CTRLBSET = TCC_CMD_UPDATE;
 }
 
@@ -549,8 +549,8 @@ void InitGen()
 	bTC->READREQ = TC_RCONT|0x10;
 	mTC->READREQ = TC_RCONT|0x10;
 
-	bTC->EVCTRL = 0;//TC_TCEI|TC_EVACT_COUNT;
-	mTC->EVCTRL = 0;//TC_TCEI|TC_EVACT_COUNT;
+	bTC->EVCTRL = TC_TCEI|TC_EVACT_COUNT;
+	mTC->EVCTRL = TC_TCEI|TC_EVACT_COUNT;
 
 	//bTC->CC16[0] = ~1;
 	//mTC->CC16[0] = ~1;
