@@ -1,6 +1,7 @@
 #include "hardware.h"
 #include "time.h"
 #include "options.h"
+#include "PointerCRC.h"
 
 #define VERSION			0x0102
 
@@ -37,6 +38,8 @@ static u16 verDevice = VERSION;
 
 u32 m_ts[WINDOW_SIZE];
 u32 b_ts[WINDOW_SIZE];
+
+byte svCount = 0;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -136,7 +139,7 @@ static bool RequestMan_80(const u16 *data, u16 len, MTB &mtb)
 	{
 		case 1:
 
-			//Options_Set_Serial(data[2]);
+			Options_Set_Serial(data[2]);
 
 			break;
 
@@ -295,6 +298,128 @@ static bool RequestMan(const u16 *buf, u16 len, MTB &mtb)
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static void InitMainVars()
+{
+	options.serial		= 0;
+	options.baud_rate	= 0;
+	options.level_b		= 0;
+	options.level_m		= 0;
+	options.gen_freq	= 10;
+	options.win_count	= 64;
+	options.win_time	= 64;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void LoadVars()
+{
+	static DSCI2C dsc;
+	static u16 romAdr = 0;
+	
+	byte buf[sizeof(options)*2+4];
+
+	bool loadVarsOk = false;
+
+	romAdr = ReverseWord(FRAM_I2C_MAINVARS_ADR);
+
+	dsc.wdata = &romAdr;
+	dsc.wlen = sizeof(romAdr);
+	dsc.wdata2 = 0;
+	dsc.wlen2 = 0;
+	dsc.rdata = buf;
+	dsc.rlen = sizeof(buf);
+	dsc.adr = 0x50;
+
+	if (I2C_AddRequest(&dsc))
+	{
+		while (!dsc.ready) { Upadte_I2C_DMA(); };
+	};
+
+	PointerCRC p(buf);
+
+	for (byte i = 0; i < 2; i++)
+	{
+		p.CRC.w = 0xFFFF;
+		p.ReadArrayB(&options, sizeof(options));
+		p.ReadW();
+
+		if (p.CRC.w == 0) { loadVarsOk = true; break; };
+	};
+
+	if (!loadVarsOk)
+	{
+		InitMainVars();
+
+		svCount = 2;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void SaveVars()
+{
+	static DSCI2C dsc;
+
+	static u16 romAdr = 0;
+	static byte buf[sizeof(options) * 2 + 8];
+
+	static byte i = 0;
+	static TM32 tm;
+
+	PointerCRC p(buf);
+
+	switch (i)
+	{
+		case 0:
+
+			if (svCount > 0)
+			{
+				svCount--;
+				i++;
+			};
+
+			break;
+
+		case 1:
+
+			for (byte j = 0; j < 2; j++)
+			{
+				p.CRC.w = 0xFFFF;
+				p.WriteArrayB(&options, sizeof(options));
+				p.WriteW(p.CRC.w);
+			};
+
+			romAdr = ReverseWord(FRAM_I2C_MAINVARS_ADR);
+
+			dsc.wdata = &romAdr;
+			dsc.wlen = sizeof(romAdr);
+			dsc.wdata2 = buf;
+			dsc.wlen2 = p.b-buf;
+			dsc.rdata = 0;
+			dsc.rlen = 0;
+			dsc.adr = 0x50;
+
+			tm.Reset();
+
+			I2C_AddRequest(&dsc);
+				
+			i++;
+
+			break;
+
+		case 2:
+
+			if (dsc.ready || tm.Check(100))
+			{
+				i = 0;
+			};
+
+			break;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static void UpdateTemp()
 {
 	static byte i = 0;
@@ -317,39 +442,7 @@ static void UpdateTemp()
 	{
 		case 0:
 
-			if (eepromWriteLen != 0)
-			{
-				if (eepromData == 0)
-				{
-					eepromWriteLen = 0;
-				}
-				else
-				{
-					romData = (byte*)eepromData;
-					romWrLen = eepromWriteLen;
-					romAdr = eepromStartAdr;
-					revRomAdr = ReverseWord(romAdr);
-
-					i = 2;
-				};
-			}
-			else if (eepromReadLen != 0)
-			{
-				if (eepromData == 0)
-				{
-					eepromReadLen = 0;
-				}
-				else
-				{
-					romData = (byte*)eepromData;
-					romRdLen = eepromReadLen;
-					romAdr = eepromStartAdr;
-					revRomAdr = ReverseWord(romAdr);
-
-					i = 5;
-				};
-			}
-			else if (tm.Check(200))
+			if (tm.Check(200))
 			{
 				HW::ResetWDT();
 
@@ -384,93 +477,7 @@ static void UpdateTemp()
 
 			break;
 
-		case 2:		// Write at24c128
-
-			pageLen = (romWrLen > 64) ? 64 : romWrLen;
-
-			dsc.wdata = &revRomAdr;
-			dsc.wlen = sizeof(revRomAdr);
-			dsc.wdata2 = romData;
-			dsc.wlen2 = pageLen;
-			dsc.rdata = 0;
-			dsc.rlen = 0;
-			dsc.adr = 0x50;
-
-			if (I2C_AddRequest(&dsc))
-			{
-				tm.Reset();
-
-				i++;
-			};
-
-			break;
-
-		case 3:
-
-			if (dsc.ready)
-			{
-				tm.Reset();
-
-				i++;
-			};
-
-			break;
-
-		case 4:
-
-			if (tm.Check(10))
-			{
-				romWrLen -= pageLen;
-				romData += pageLen;
-				revRomAdr = ReverseWord(romAdr += pageLen);
-
-				if (romWrLen > 0)
-				{
-					i = 2;
-				}
-				else
-				{
-					eepromWriteLen = 0;
-
-					i = 0;
-				};
-
-			};
-
-			break;
-
-		case 5:		// Read at24c128
-
-			dsc.wdata = &revRomAdr;
-			dsc.wlen = sizeof(revRomAdr);
-			dsc.wdata2 = 0;
-			dsc.wlen2 = 0;
-			dsc.rdata = romData;
-			dsc.rlen = romRdLen;
-			dsc.adr = 0x50;
-
-			if (I2C_AddRequest(&dsc))
-			{
-				tm.Reset();
-
-				i++;
-			};
-
-			break;
-
-		case 6:
-
-			if (dsc.ready)
-			{
-				eepromReadLen = 0;
-
-				i = 0;
-			};
-
-			break;
 	};
-
-//	HW::GPIO->CLR0 = 1<<12;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -614,6 +621,7 @@ static void UpdateParams()
 		CALL( UpdateMan()			);
 		CALL( UpdateHardware()		);
 		CALL( UpdateWindow()		);
+		CALL( SaveVars()			);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;
@@ -636,7 +644,9 @@ int main()
 
 	InitHardware();
 
-//	Options_Init();
+	LoadVars();
+
+	Options_Init();
 
 	txbuf[0] = 0x5555;
 	txbuf[1] = 0xAAAA;

@@ -2,13 +2,12 @@
 #include "hardware.h"
 #include "options.h"
 
-options_type options;
+MainVars options;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void Options_Init()
 {
-	EEPROM_Read((byte *)0, (byte *)&options, sizeof(options));
 	Options_Set_Serial(Options_Get_Serial());	// для проверки
 	Options_Set_Telemetry_Baud_Rate(Options_Get_Telemetry_Baud_Rate());	// для проверки
 	Options_Set_Level_B(Options_Get_Level_B());
@@ -68,16 +67,6 @@ void Options_Set_Level_M(u16 level)
 	{
 		AD5312_Set(AD5312_CHANNEL_LEVEL_M, options.level_m = pl = level);
 	};
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-void Options_Save()
-{
-	while(!EEPROM_Verify((byte *)0, (byte *)&options, sizeof(options)))
-	{
-		EEPROM_Write((byte *)0, (byte *)&options, sizeof(options));
-	}
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

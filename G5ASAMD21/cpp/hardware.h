@@ -23,6 +23,9 @@
 #define ADC_CH_TEMPERATURE	0
 #define ADC_CH_CORRECTION	1
 
+#define FRAM_I2C_MAINVARS_ADR	0
+#define FRAM_I2C_GENTIME_ADR	0x200
+
 extern void Hardware_Init();
 
 extern u16 NNKB_Timer_Get();
@@ -42,10 +45,10 @@ inline u16 ADC_Get(byte ch) { extern u16 adc_result[8]; return adc_result[ch]; }
 
 //inline void __dsb() { __asm { DSB }; }
 
-extern i16 Temperature_Sensor_Calibrate(i16 t);
-extern void EEPROM_Read(byte *src, byte *dst, u16 size);
-extern void EEPROM_Write(byte *src, byte *dst, u16 size);
-extern bool EEPROM_Verify(byte *src, byte *dst, u16 size);
+//extern i16 Temperature_Sensor_Calibrate(i16 t);
+//extern void EEPROM_Read(byte *src, byte *dst, u16 size);
+//extern void EEPROM_Write(byte *src, byte *dst, u16 size);
+//extern bool EEPROM_Verify(byte *src, byte *dst, u16 size);
 
 #define RXD_TIMER_FREQ			(CPU_FREQ_PERIPHERY4 / 16)
 #define TXD_TIMER_FREQ			(CPU_FREQ_PERIPHERY4 / 16)
@@ -83,6 +86,8 @@ inline u16 GetWindowTime() {extern u16 windowTime; return windowTime; }
 inline u16 GetGenWorkTime() {extern u16 genWorkTimeMinutes; return genWorkTimeMinutes; }
 inline u16 GetFireCount() {extern u16 fireCount; __disable_irq(); u16 v = fireCount; fireCount = 0; __enable_irq(); return v; }
 
+inline u16 GetTemp() {extern u16 temp; return temp; }
+
 extern u32 m_ts[];
 extern u32 b_ts[];
 
@@ -108,7 +113,9 @@ struct DSCI2C
 //inline bool Read_I2C(DSCI2C *d) { return Write_I2C(d); }
 //extern bool Check_I2C_ready();
 extern bool I2C_AddRequest(DSCI2C *d);
+extern void Upadte_I2C_DMA();
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

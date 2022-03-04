@@ -21,7 +21,7 @@ typedef enum
 //} options_nnk_type;
 
 
-typedef struct __attribute__ ((packed))
+__packed struct MainVars
 {
 	u16 serial;
 	u16 baud_rate;
@@ -31,11 +31,9 @@ typedef struct __attribute__ ((packed))
 	u16 gen_freq;
 	u16 win_count;
 	u16 win_time;
-	u16 crc;
+};
 
-} options_type;
-
-extern options_type options;
+extern MainVars options;
 
 extern void Options_Init();
 
@@ -48,7 +46,7 @@ inline u16 Options_Get_Level_M() { return options.level_m; }
 extern bool Options_Set_Telemetry_Baud_Rate(u16 baud_rate);
 extern void Options_Set_Level_B(u16 level);
 extern void Options_Set_Level_M(u16 level);
-extern void Options_Save();
+inline void Options_Save() { extern byte svCount; svCount = 1; }
 
 #endif
 

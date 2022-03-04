@@ -5,6 +5,7 @@
 #include "hardware.h"
 #include "options.h"
 #include "list.h"
+#include "PointerCRC.h"
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -214,6 +215,8 @@ u16 fireCount = 0;
 u16 gen_period = 4687;
 u16 gen_freq = 10;
 
+byte saveGenCount = 0;
+
 WINDSC windsc_arr[4];
 
 List<WINDSC>	readyWinList;
@@ -224,7 +227,20 @@ WINDSC *curWinDsc = 0;
 static void SaveGenTime();
 static void PrepareWin();
 
+u16 temp = 0;
+
+//static void* eepromData = 0;
+//static u16 eepromWriteLen = 0;
+//static u16 eepromReadLen = 0;
+//static u16 eepromStartAdr = 0;
+
+inline u16 ReverseWord(u16 v) { __asm	{ rev16 v, v };	return v; }
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline void SaveGenTime() { saveGenCount = 1; }
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void InitWinLsit()
 {
@@ -341,6 +357,115 @@ inline bool CheckGenEnabled()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static void LoadGenTime()
+{
+	static DSCI2C dsc;
+	static u16 romAdr = 0;
+	
+	byte buf[sizeof(genWorkTimeMinutes)*2+8];
+
+	bool loadVarsOk = false;
+
+	romAdr = ReverseWord(FRAM_I2C_GENTIME_ADR);
+
+	dsc.wdata = &romAdr;
+	dsc.wlen = sizeof(romAdr);
+	dsc.wdata2 = 0;
+	dsc.wlen2 = 0;
+	dsc.rdata = buf;
+	dsc.rlen = sizeof(buf);
+	dsc.adr = 0x50;
+
+	if (I2C_AddRequest(&dsc))
+	{
+		while (!dsc.ready) { Upadte_I2C_DMA(); };
+	};
+
+	PointerCRC p(buf);
+
+	for (byte i = 0; i < 2; i++)
+	{
+		p.CRC.w = 0xFFFF;
+		p.ReadArrayB(&genWorkTimeMinutes, sizeof(genWorkTimeMinutes));
+		p.ReadW();
+
+		if (p.CRC.w == 0) { loadVarsOk = true; break; };
+	};
+
+	if (!loadVarsOk)
+	{
+		genWorkTimeMinutes = 0;
+
+		saveGenCount = 2;
+	};
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateSaveGenTime()
+{
+	static DSCI2C dsc;
+
+	static u16 romAdr = 0;
+	static byte buf[sizeof(genWorkTimeMinutes) * 2 + 8];
+
+	static byte i = 0;
+	static TM32 tm;
+
+	PointerCRC p(buf);
+
+	switch (i)
+	{
+		case 0:
+
+			if (saveGenCount > 0)
+			{
+				saveGenCount--;
+				i++;
+			};
+
+			break;
+
+		case 1:
+
+			for (byte j = 0; j < 2; j++)
+			{
+				p.CRC.w = 0xFFFF;
+				p.WriteArrayB(&genWorkTimeMinutes, sizeof(genWorkTimeMinutes));
+				p.WriteW(p.CRC.w);
+			};
+
+			romAdr = ReverseWord(FRAM_I2C_GENTIME_ADR);
+
+			dsc.wdata = &romAdr;
+			dsc.wlen = sizeof(romAdr);
+			dsc.wdata2 = buf;
+			dsc.wlen2 = p.b-buf;
+			dsc.rdata = 0;
+			dsc.rlen = 0;
+			dsc.adr = 0x50;
+
+			tm.Reset();
+
+			I2C_AddRequest(&dsc);
+				
+			i++;
+
+			break;
+
+		case 2:
+
+			if (dsc.ready || tm.Check(100))
+			{
+				i = 0;
+			};
+
+			break;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static void UpdateGenTime()
 {
 	static u32 pt = 0;
@@ -350,27 +475,32 @@ static void UpdateGenTime()
 
 	pt = t;
 
-	if (dt != 0 && CheckGenEnabled())
+	if (dt != 0)
 	{
-		genWorkTimeMilliseconds += dt;
-
-		if (genWorkTimeMilliseconds >= 60000)
+		if (CheckGenEnabled())
 		{
-			genWorkTimeMinutes += 1;
+			genWorkTimeMilliseconds += dt;
 
-			genWorkTimeMilliseconds -= 60000;
+			if (genWorkTimeMilliseconds >= 60000)
+			{
+				genWorkTimeMinutes += 1;
 
-			SaveGenTime();
+				genWorkTimeMilliseconds -= 60000;
+
+				SaveGenTime();
+			};
+
+			if (genTimeOut < dt) 
+			{
+				DisableGen();
+			}
+			else
+			{
+				genTimeOut -= dt;
+			};
 		};
 
-		if (genTimeOut < dt) 
-		{
-			DisableGen();
-		}
-		else
-		{
-			genTimeOut -= dt;
-		};
+		UpdateSaveGenTime();
 	};
 
 	if (curWinDsc == 0)	PrepareWin();
@@ -524,10 +654,11 @@ void InitGen()
 	PM->APBCMASK |= PM_APBC_TCC2|PM_APBC_TC3|PM_APBC_TC4|PM_APBC_TC5;
 	PM->APBCMASK |= PM_APBC_EVSYS;
 
-	HW::PIOA->DIRSET = D_FIRE|PA17|PA18|PA19;
-	HW::PIOA->CLR(D_FIRE);
+	HW::PIOA->DIRSET = PA17|PA18|PA19;
+	PIO_D_FIRE->DIRSET = D_FIRE;
+	PIO_D_FIRE->CLR(D_FIRE);
 
-	PIO_D_FIRE->SetWRCONFIG(D_FIRE,		PORT_PMUX(4) | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
+	PIO_D_FIRE->SetWRCONFIG(D_FIRE,		PORT_PMUX(4) | PORT_WRPINCFG | PORT_WRPMUX);
 	PIO_DNNK->SetWRCONFIG(DNNKB|DNNKM,	PORT_PMUX(0) | PORT_WRPINCFG | PORT_PMUXEN | PORT_WRPMUX);
 
 	EIC->EVCTRL |= (EIC_EXTINT0 << DNNKB_EXTINT) | (EIC_EXTINT0 << DNNKM_EXTINT);
@@ -606,23 +737,8 @@ void InitGen()
 	SetGenFreq(gen_freq);
 
 	genTimeOut = 60000;
-}
 
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static void SaveGenTime()
-{
-	while(!EEPROM_Verify((byte *)32, (byte *)&genWorkTimeMinutes, sizeof(genWorkTimeMinutes)))
-	{
-		EEPROM_Write((byte *)32, (byte *)&genWorkTimeMinutes, sizeof(genWorkTimeMinutes));
-	}
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static void LoadGenTime()
-{
-	EEPROM_Read((byte *)32, (byte *)&genWorkTimeMinutes, sizeof(genWorkTimeMinutes));
+	LoadGenTime();
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2219,7 +2335,7 @@ static void Upadte_I2C()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static void Upadte_I2C_DMA()
+void Upadte_I2C_DMA()
 {
 	enum STATE { WAIT = 0, WRITE, READ, STOP };
 
@@ -2281,7 +2397,7 @@ static void Upadte_I2C_DMA()
 
 					__enable_irq();
 
-					I2C->ADDR = (adr << 1) | 1;
+					I2C->ADDR = ((rdCount <= 255) ? (I2C_LEN(rdCount)|I2C_LENEN) : 0) | (adr << 1) | 1;
 					state = READ; 
 				}
 				else
@@ -2297,11 +2413,11 @@ static void Upadte_I2C_DMA()
 					}
 					else
 					{
-						dmadsc.SRCADDR	= wrPtr2 + wrCount2;
-						dmadsc.DSTADDR	= &I2C->DATA;
-						dmadsc.BTCNT	= wrCount2;
-						dmadsc.BTCTRL	= DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_SRCINC;
-						dmadsc.DESCADDR = &wr_dmadsc;
+						wr_dmadsc.SRCADDR	= wrPtr2 + wrCount2;
+						wr_dmadsc.DSTADDR	= &I2C->DATA;
+						wr_dmadsc.BTCNT		= wrCount2;
+						wr_dmadsc.BTCTRL	= DMDSC_VALID|DMDSC_BEATSIZE_BYTE|DMDSC_SRCINC;
+						dmadsc.DESCADDR		= &wr_dmadsc;
 					};
 
 					__disable_irq();
@@ -2488,48 +2604,6 @@ bool Init_I2C()
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-void EEPROM_Read(byte *src, byte *dst, u16 size)
-{
-	//while(size)
-	//{
-	//	*dst = eeprom_read_byte(src);
-	//	dst ++;
-	//	src ++;
-	//	size --;
-	//}
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-void EEPROM_Write(byte *src, byte *dst, u16 size)
-{
-	//while(size)
-	//{
-	//	eeprom_write_byte(src, *dst);
-	//	dst ++;
-	//	src ++;
-	//	size --;
-	//}
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-bool EEPROM_Verify(byte *src, byte *dst, u16 size)
-{
-	bool verify = true;	
-	//while((size) && (verify))
-	//{
-	//	if(eeprom_read_byte(src) != *dst) verify = false;
-	//	dst ++;
-	//	src ++;
-	//	size --;
-	//}
-	return verify;
-}
-
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 u16 ad5312_data[2] = { 2048, 2048 };
